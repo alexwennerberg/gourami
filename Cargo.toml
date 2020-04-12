@@ -1,0 +1,11 @@
+[package]
+name = "nano_ap"
+version = "0.1.0"
+authors = ["alex wennerberg <alex@alexwennerberg.com>"]
+edition = "2018"
+
+[dependencies]
+askama = "0.8"
+diesel = { version = "1.0.0", features = ["sqlite"] }
+tokio = { version = "0.2", features = ["macros"] }
+warp = "0.2"
