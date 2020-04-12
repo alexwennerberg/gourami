@@ -1,10 +1,10 @@
-# nano_ap (WIP title)
+# nap (WIP title)
 
-Dependencies:
+## Dependencies:
 
 sqlite3
 
-Goals:
+## Goals:
 
 * Activity-pub compatible
 * UX Brutalism -- Expose, rather than hide, the fundamental components of HTML and the Web. The user interface may be jarring to some who are used to the modern web.
@@ -15,15 +15,17 @@ Goals:
 * Configurable for offline / local network usage
 * Extreme accessibility 
 
-Maybe goals:
+## Maybe goals:
+
 * Email and SMS interface
 
 
-Non-goals:
+## Non-goals:
+
 * Scalability
 
 
-Some inspiration/influences:
+## Some inspiration/influences:
 
 * Jenny Odell's discussion of adding context to social media in *How to Do Nothing*
 * https://runyourown.social/
