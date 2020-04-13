@@ -1,4 +1,4 @@
-# nap (WIP title)
+# Accentor
 
 ## Dependencies:
 
@@ -23,6 +23,7 @@ sqlite3
 ## Non-goals:
 
 * Scalability
+* Certain anti-abuse and anti-spam features. This is designed to be used as a small-scale service with active moderation, not a service with open public registration.
 
 
 ## Some inspiration/influences:

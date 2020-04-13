@@ -1,5 +1,5 @@
 [package]
-name = "nap_social"
+name = "accentor_social"
 version = "0.1.0"
 authors = ["alex wennerberg <alex@alexwennerberg.com>"]
 edition = "2018"
