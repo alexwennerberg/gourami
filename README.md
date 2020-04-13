@@ -1,4 +1,4 @@
-# Accentor
+# gourami
 
 ## Dependencies:
 
