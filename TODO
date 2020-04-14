@@ -1,1 +1,58 @@
+Plain text statuses
+
+TODO --
+
+First, client to server protocol, then federation
+
+Person
+Note
+Follow/Unfollow
+Inbox
+Outbox
+
+crates--
 logging
+json and serde json
+
+activitypub to implement:
+
+Person
+https://www.w3.org/TR/activitystreams-vocabulary/#dfn-person
+MUST have 
+inbox, outbox
+
+Note --  Represents a short written work typically less than a single paragraph in length. 
+
+Object properties: https://www.w3.org/TR/activitystreams-vocabulary/#dfn-object
+
+Webfinger
+
+Profiles:
+
+Follow 
+
+AP key verification
+
+Status == ActivityPub "Note"
+
+authentication
+https://github.com/messense/otpauth-rs
+
+Audit log -- https://meta.sr.ht/security
+
+https://github.com/rustodon/rustodon
+https://github.com/Plume-org/Plume.git
+
+add code of conduct
+
+Add AGPL and reference influences:
+
+https://github.com/rustodon/rustodon
+mastodon itself
+https://github.com/tsileo/microblog.pub
+
+RSS/atom
+
+API
+compile with or without certain features
+

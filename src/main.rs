@@ -3,10 +3,26 @@ use askama::Template;
 use warp::http::{self, header, StatusCode};
 use warp::hyper::Body;
 use warp::reply::Response;
+use env_logger;
 
 #[derive(Template)]
-#[template(path = "hello.html")] 
-struct HelloTemplate<'a>{
+#[template(path = "timeline.html")] 
+struct HomeTemplate<'a>{
+    name: &'a str,
+    _parent: BaseTemplate<'a>
+} 
+
+
+// all the info on every page
+#[derive(Template)]
+#[template(path = "base.html")] 
+struct BaseTemplate<'a>{
+    title: &'a str,
+}
+
+#[derive(Template)]
+#[template(path = "notifications.html")] 
+struct NotificationTemplate<'a>{
     name: &'a str,
 }
 
@@ -25,10 +41,20 @@ pub fn reply<T: askama::Template>(t: &T) -> Response {
 
 #[tokio::main]
 async fn main() {
-    let hello = warp::path!("test")
-        .map(|| reply(&HelloTemplate{name: "world"}));
+    env_logger::init();
+    let notifications = warp::path("notifications");
+    let test = warp::path("test").map(|| "Hello world");
+    // post
+    // user
+    // default page -- timeline
+    let home = warp::path::end()
+        .map(|| reply(&HomeTemplate{name: "world", _parent: BaseTemplate { title: "gourami"}}));
 
-    warp::serve(hello)
+    let static_files = warp::path("static")
+            .and(warp::fs::dir("./static"));
+
+    let routes = warp::get().and(home.or(test).or(static_files));
+    warp::serve(routes)
         .run(([127, 0, 0, 1], 3030))
         .await;
 }

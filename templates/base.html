@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <title>{{title}}</title>
+    <link rel="stylesheet" type="text/css" href="static/css/style.css">
+    <link rel="stylesheet" type="text/css" href="static/css/bootstrap-grid.min.css">
+  </head>
+  <body>
+    <div class="container">
+    <div id="header">
+      <div id="row">
+      <div class="col-sm">
+        gourami t n d
+      </div>
+      <div class="col-sm text-right">
+        logged in / logged out -- you
+      </div>
+      </div>
+    </div>
+    <div id="content">
+      <div id="row">
+      size here
+      {% block content %}{% endblock %}
+      </div>
+    </div>
+    <div id="footer">
+      Built with <a href="https://git.sr.ht/~alexwennerberg/gourami-social">gourami</a>
+    </div>
+  </body>
+</html>

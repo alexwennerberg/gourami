@@ -8,4 +8,6 @@ edition = "2018"
 askama = "0.8"
 diesel = { version = "1.0.0", features = ["sqlite"] }
 tokio = { version = "0.2", features = ["macros"] }
+log = "0.4"
+env_logger = "0.7"
 warp = "0.2"
