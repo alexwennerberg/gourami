@@ -1,7 +1,16 @@
 {% extends "base.html" %}
 
 {% block content %}
-Ppost a status: 
-
-asdfasdfasdf
+<div class="container">
+<form method="POST">
+<textarea id="status-input" rows=3 placeholder="status"></textarea>
+<br>
+<button id="post">post</button>
+</form>
+<div class="row">
+  <div class="status">
+    #{{post_id}} | {{user_id}}: 
+  </div>
+</div>
+</div>
 {% endblock %}

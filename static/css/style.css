@@ -11,6 +11,19 @@
   font-size:2rem;
 }
 
+.status {
+  border-top: 1px solid black;
+  border-bottom: 1px solid black;
+  margin: 1rem;
+  padding: 3px;
+}
+
+#status-input {
+  width: 80%;
+  resize: none;
+  margin: 5px; 
+}
+
 .text-right {
   text-align: right;
 }
@@ -30,8 +43,9 @@
   border: 1px solid black;
 }
 
-.white {
+.main {
   background-color: white;
+  width:50%;
 }
 
 body {
