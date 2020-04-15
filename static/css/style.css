@@ -1,1 +1,39 @@
-a
+.monospace {
+  font-family: "courier", monospace
+}
+
+.title {
+  font-weight: 900;
+}
+
+.navbar {
+  border: 1px solid black;
+  font-size:2rem;
+}
+
+.text-right {
+  text-align: right;
+}
+
+.text-center {
+  text-align: center;
+}
+
+.text-left {
+  text-align: left;
+}
+.main-content {
+  border: 1px solid black;
+}
+
+.footer {
+  border: 1px solid black;
+}
+
+.white {
+  background-color: white;
+}
+
+body {
+    background-color: lightgrey;
+}

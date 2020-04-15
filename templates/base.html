@@ -2,29 +2,29 @@
 <html lang="en">
   <head>
     <title>{{title}}</title>
-    <link rel="stylesheet" type="text/css" href="static/css/style.css">
-    <link rel="stylesheet" type="text/css" href="static/css/bootstrap-grid.min.css">
+    <link rel="stylesheet" type="text/css" href="../static/css/style.css">
+    <link rel="stylesheet" type="text/css" href="../static/css/bootstrap-grid.min.css">
   </head>
-  <body>
-    <div class="container">
+  <body class="monospace">
+    <div class="container white">
     <div id="header">
-      <div id="row">
+      <div class="row navbar">
       <div class="col-sm">
-        gourami t n d
+        <div class="title">gourami/{{page}}</div> 
       </div>
-      <div class="col-sm text-right">
-        logged in / logged out -- you
-      </div>
-      </div>
-    </div>
-    <div id="content">
-      <div id="row">
-      size here
-      {% block content %}{% endblock %}
+      <div class="col-sm text-center">t n d</div>
+      <div class="col-sm  text-right">
+        logged out
       </div>
     </div>
-    <div id="footer">
+    </div>
+    <div class="row main-content">
+        size here
+        {% block content %}{% endblock %}
+    </div>
+    <div class="row footer">
       Built with <a href="https://git.sr.ht/~alexwennerberg/gourami-social">gourami</a>
+    </div>
     </div>
   </body>
 </html>
