@@ -6,14 +6,21 @@ use warp::Filter;
 use askama::Template;
 use warp::http::{self, header, StatusCode};
 use warp::hyper::Body;
-use warp::reply::Response;
+use warp::reply::{Response, Reply};
 use env_logger;
-use db::status::Note;
+use db::status::{NoteInput, Note};
 use diesel::prelude::*;
 use diesel::sqlite::SqliteConnection;
+use diesel::insert_into;
+use serde::{Deserialize, Serialize};
 
 mod db;
 
+fn establish_connection() -> SqliteConnection {
+    let url = ::std::env::var("DATABASE_URL").unwrap();
+    let conn = SqliteConnection::establish(&url).unwrap();
+    conn
+}
 // TODO split into separate templates. not sure how
 #[derive(Template)]
 #[template(path = "timeline.html")] 
@@ -46,15 +53,32 @@ pub fn render_template<T: askama::Template>(t: &T) -> Response {
     .unwrap()
 }
 
-fn new_note() {
+#[derive(Deserialize)]
+struct NewNoteRequest {
+    note_input: String, // has to be String
+}
+
+fn new_note(req: &NewNoteRequest) -> impl Reply {
+    use db::schema::note::dsl::*;
     // create activitypub activity object
     // TODO -- micropub?
+    let conn = establish_connection();
+    let new_note = NoteInput{
+        creator_id: 1,
+        parent_id: None,
+        published: String::from("now"),
+        content: req.note_input.clone(), // how to avoid clone here?
+    };
+    insert_into(note).values(new_note).execute(&conn).unwrap();
+
     // generate activitypub object from post request
     // send to outbox
+    // if request made from web form
+    warp::redirect::redirect(warp::http::Uri::from_static("/"))
 }
 
 // ActivityPub outbox 
-fn outbox() {
+fn send_to_outbox(activity: bool) { // activitystreams object
     // fetch/store from db.
     // db objects need to serialize/deserialize this object
     // if get -> fetch from db
@@ -72,8 +96,6 @@ async fn main() {
     let notifications = warp::path("notifications");
     
     // How does this interact with tokio? who knows!
-    // let url = ::std::env::var("DATABASE_URL").unwrap();
-    // let conn = SqliteConnection::establish(&url).unwrap();
     let test = warp::path("test").map(|| "Hello world");
 
     // post
@@ -90,11 +112,13 @@ async fn main() {
     let static_files = warp::path("static")
             .and(warp::fs::dir("./static"));
 
+    // https://github.com/seanmonstar/warp/issues/42 -- how to set up diesel
     // TODO set content length limit 
     // TODO redirect via redirect in request
     // TODO secure against xss
     let create_note = warp::path("create_note")
-        .map(|| warp::redirect(warp::http::Uri::from_static("/")));
+        .and(warp::body::form())
+        .map(|note_req: NewNoteRequest| new_note(&note_req));
 
     // catch all for any other paths
     let not_found = warp::any().map(|| "404 not found");

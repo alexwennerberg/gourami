@@ -481,8 +481,11 @@ dependencies = [
  "chrono",
  "diesel",
  "env_logger",
+ "lazy_static",
  "log 0.4.8",
  "reqwest",
+ "serde",
+ "serde_json",
  "tokio",
  "warp",
 ]
