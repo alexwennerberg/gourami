@@ -1,5 +1,18 @@
 Plain text statuses
 
+marketing tagline:
+
+"An intentionally small, lightweight activitypub community"
+
+NOTES--
+
+NO DMS -- not really secure in AP
+NO IMAGES -- issue described in https://flak.tedunangst.com/post/honk
+
+mastodon doesnt implement client-to-server
+
+outbox -?
+
 TODO --
 
 First, client to server protocol, then federation
@@ -8,7 +21,7 @@ Person
 Note
 Follow/Unfollow
 Inbox
-Outbox
+Outbox --> not really strictly necessary?
 
 crates--
 logging
@@ -42,6 +55,9 @@ Audit log -- https://meta.sr.ht/security
 
 https://github.com/rustodon/rustodon
 https://github.com/Plume-org/Plume.git
+microblog
+honk https://flak.tedunangst.com/post/honk-preview
+https://flak.tedunangst.com/post/honk
 
 add code of conduct
 

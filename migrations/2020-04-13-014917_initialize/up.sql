@@ -1,34 +1,25 @@
 -- Your SQL goes here
 
-CREATE TABLE accounts (
+CREATE TABLE user (
 id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
-username
-email
-created_at
-private_key
-public_key
-)
+  username VARCHAR(255),
+  email VARCHAR(255),
+  created_at TEXT,
+  private_key TEXT,
+  public_key TEXT
+);
 
--- why separate
-CREATE TABLE users(
-id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
-email
-)
-
-CREATE TABLE notifications(
-id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
-)
+CREATE TABLE notification (
+  id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT
+);
 
 -- media_attachments
 
 CREATE TABLE status (
-id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
-)
-
-CREATE TABLE IF NOT EXISTS "follows" (
     id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
-    follower_id INTEGER REFERENCES users(id) ON DELETE CASCADE NOT NULL,
-    following_id INTEGER REFERENCES users(id) ON DELETE CASCADE NOT NULL,
-    ap_url TEXT NOT NULL default '' UNIQUE
+    creator_id INTEGER,
+    parent_id INTEGER,
+    content TEXT,
+    published TEXT
 );
 
