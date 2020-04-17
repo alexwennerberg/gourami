@@ -2,15 +2,17 @@
 
 {% block content %}
 <div class="container">
-<form method="POST">
-<textarea id="status-input" rows=3 placeholder="status"></textarea>
+<form action="/create_note" method="POST">
+<textarea id="note-input" rows=3 placeholder="note"></textarea>
 <br>
-<button id="post">post</button>
+<button id="post">create note</button>
 </form>
+{% for note in notes %}
 <div class="row">
-  <div class="status">
-    HL->post_id timestamp | user_id: post content delete button
+  <div class="note">
+    <a href="/note/{{note.id}}">#{{note.id}}</a> {{note.published}} | {{note.content}} <a href=/delete_note/{{note.id}}>x</a>
   </div>
 </div>
+{% endfor %}
 </div>
 {% endblock %}

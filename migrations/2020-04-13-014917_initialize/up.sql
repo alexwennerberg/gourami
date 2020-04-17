@@ -15,7 +15,7 @@ CREATE TABLE notification (
 
 -- media_attachments
 
-CREATE TABLE status (
+CREATE TABLE note (
     id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
     creator_id INTEGER,
     parent_id INTEGER,

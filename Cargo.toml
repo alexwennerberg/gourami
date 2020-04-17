@@ -14,3 +14,5 @@ warp = "0.2"
 reqwest = "0.10"
 activitystreams = "0.4.0"
 chrono = "*"
+
+[dev-dependencies]

@@ -1,5 +1,5 @@
 table! {
-    status (id) {
+    note (id) {
         id -> Integer,
         creator_id -> Integer,
         parent_id -> Nullable<Integer>,

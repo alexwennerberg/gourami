@@ -12,10 +12,12 @@
       <div class="col-sm">
         <div class="title">{{title}}/{{page}}</div> 
       </div>
-      <div class="col-sm text-center">t n</div>
+      <div class="col-sm text-center">
+        <a href="/">t</a> <a href="/test">n</a>
+      </div>
       <div class="col-sm text-right">
         {% if logged_in %}
-          {{username}}
+        <a href="/user/{{username}}">{{username}}</a>
         {% else %}
           logged out
         {% endif %} 
