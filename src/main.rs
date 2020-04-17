@@ -53,6 +53,13 @@ pub fn render_template<T: askama::Template>(t: &T) -> Response {
     .unwrap()
 }
 
+fn delete_note(note_id: i32) -> impl Reply {
+    use db::schema::note::dsl::*;
+    let conn = establish_connection();
+    diesel::delete(note.filter(id.eq(note_id))).execute(&conn).unwrap();
+    warp::redirect::redirect(warp::http::Uri::from_static("/"))
+}
+
 #[derive(Deserialize)]
 struct NewNoteRequest {
     note_input: String, // has to be String
@@ -120,12 +127,16 @@ async fn main() {
         .and(warp::body::form())
         .map(|note_req: NewNoteRequest| new_note(&note_req));
 
+    let delete_note = warp::path::param::<i32>()
+        .and(warp::path("delete"))
+        .map(|note_id| delete_note(note_id));
+
     // catch all for any other paths
     let not_found = warp::any().map(|| "404 not found");
 
     let routes = warp::get().and(
         home.or(test).or(static_files).or(not_found))
-        .or(warp::post().and(create_note));
+        .or(warp::post().and(create_note.or(delete_note)));
     warp::serve(routes)
         .run(([127, 0, 0, 1], 3030))
         .await;

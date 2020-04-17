@@ -22,7 +22,6 @@ impl Note {
     pub fn get_for_user(conn: &SqliteConnection, user_id: i32) -> Vec<Self> {
         let results = note
         .filter(creator_id.eq(user_id))
-        .limit(5)
         .load::<Self>(conn)
         .expect("Error loading posts");
         results
