@@ -1,5 +1,6 @@
 #[macro_use]
 extern crate diesel;
+#[macro_use] extern crate log;
 
 use gourami_social::*;
 use warp::Filter;
@@ -136,7 +137,8 @@ async fn main() {
 
     let routes = warp::get().and(
         home.or(test).or(static_files).or(not_found))
-        .or(warp::post().and(create_note.or(delete_note)));
+        .or(warp::post().and(create_note.or(delete_note)))
+        .with(warp::log("server"));
     warp::serve(routes)
         .run(([127, 0, 0, 1], 3030))
         .await;
