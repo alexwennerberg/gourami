@@ -13,6 +13,7 @@ pub struct User {
     pub email: String,
     pub bio: String,
     pub created_time: String,
+    pub password: String, // is this OK? hashed
 }
 
 // TODO -- default "anonymous" user
@@ -24,19 +25,18 @@ impl User {
         pass: &str,
     ) -> Option<Self> {
         use crate::db::schema::users::dsl::*;
-        let (user, hash) = match users
+        let user = match users
             .filter(username.eq(user))
-            .select(((id, username, email, created_time, bio), password))
-            .first::<(User, String)>(conn)
+            .first::<User>(conn)
         {
-            Ok((user, hash)) => (user, hash),
+            Ok(user) => user,
             Err(e) => {
                 error!("Failed to load hash for {:?}: {:?}", user, e);
                 return None;
             }
         };
 
-        match bcrypt::verify(&pass, &hash) {
+        match bcrypt::verify(&pass, &user.password) {
             Ok(true) => Some(user),
             Ok(false) => None,
             Err(e) => {

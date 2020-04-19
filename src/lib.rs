@@ -47,16 +47,6 @@ lazy_static! {
 //     return *POOL.get().unwrap();
 
 
-#[derive(Template)]
-#[template(path = "user.html")] 
-struct UserTemplate<'a>{
-    global: Global<'a>,
-    page: &'a str,
-    notes: Vec<Note>,
-    user: &'a User
-} 
-
-
 // TODO split into separate templates. not sure how
 #[derive(Template)]
 #[template(path = "timeline.html")] 
@@ -249,23 +239,85 @@ fn render_timeline(session: Option<Session>) -> impl Reply {
     })
 
 }
-// fn do_logout(mut session: Session) -> Result<impl Reply, Rejection> {
-//     session.clear();
-//     Response::builder()
-//         .status(StatusCode::FOUND)
-//         .header(header::LOCATION, "/")
-//         .header(
-//             header::SET_COOKIE,
-//             "EXAUTH=; Max-Age=0; SameSite=Strict; HttpOpnly",
-//         )
-//         .body(b"".to_vec())
-//         .map_err(custom)
-// }
 
-fn logout() {
+#[derive(Template)]
+#[template(path = "server_info.html")]
+struct ServerInfoTemplate<'a> {
+    global: Global<'a>,
+    page: &'a str,
 }
-// ActivityPub inbox
-fn inbox() {
+
+#[derive(Template)]
+#[template(path = "error.html")] 
+struct ErrorTemplate<'a> {
+    global: Global<'a>,
+    error_message: &'a str
+}
+
+#[derive(Template)]
+#[template(path = "user.html")] 
+struct UserTemplate<'a>{
+    global: Global<'a>,
+    page: &'a str,
+    notes: Vec<Note>,
+    user: User
+} 
+
+#[derive(Template)]
+#[template(path = "note.html")] 
+struct NoteTemplate<'a> {
+    global: Global<'a>,
+    page: &'a str,
+    note: Note,
+    // thread
+}
+
+fn server_info_page(session: Option<Session>) -> impl Reply {
+    let global = Global::from_session(session); 
+    render_template(&ServerInfoTemplate{global: global, page: "server"})
+}
+
+fn note_page(session: Option<Session>, note_id: i32) -> impl Reply {
+    let global = Global::from_session(session); 
+    use db::schema::notes::dsl::*;
+    let conn = &POOL.get().unwrap();
+    let note: Option<Note> = notes
+        .filter(id.eq(note_id))
+        .first::<Note>(conn)
+        .ok();
+    if let Some(n) = note {
+        render_template(&NoteTemplate{global: global, note: n.clone(), page: &n.id.to_string()})
+    }
+    else {
+        render_template(&ErrorTemplate{global: global, error_message: "Note not found"})
+    }
+    // TODO -- fetch replies
+}
+
+fn user_page(session: Option<Session>, user_name: String) -> impl Reply {
+    let global = Global::from_session(session); 
+    use db::schema::notes::dsl::*;
+    use db::schema::users::dsl::*;
+    let conn = &POOL.get().unwrap();
+    let user: Option<User> = users
+        .filter(username.eq(user_name))
+        .first::<User>(conn)
+        .ok();
+    if let Some(u) = user {
+        let results = notes
+            .filter(creator_id.eq(u.id))
+            .load::<Note>(conn)
+            .expect("Error loading posts");
+        render_template(&UserTemplate{
+            global: global,
+            page: &u.username,
+            user: u.clone(), // TODO stop cloning
+            notes: results
+        })
+    }
+    else {
+        render_template(&ErrorTemplate{global: global, error_message: "User not found"})
+    }
 }
 
 pub async fn run_server() {
@@ -278,6 +330,18 @@ pub async fn run_server() {
     let home = warp::path::end()
         .and(session_filter())
         .map(render_timeline);
+
+    let user_page = session_filter()
+        .and(path!("user" / String))
+        .map(user_page);
+
+    let note_page = session_filter()
+        .and(path!("note" / i32))
+        .map(note_page);
+
+    let server_info_page = session_filter()
+        .and(path("server_info"))
+        .map(server_info_page);
 
     // auth functions
     let register_page = path("register")
@@ -301,8 +365,7 @@ pub async fn run_server() {
         .map(new_note);
 
     let delete_note = session_filter()
-        .and(warp::path::param::<i32>())
-        .and(warp::path("delete"))
+        .and(path!(i32 / "delete"))
         .map(delete_note);
 
 
@@ -316,7 +379,7 @@ pub async fn run_server() {
     // TODO secure against xss
         // used for api based authentication
     // let api_filter = session::create_session_filter(&POOL.get());
-    let html_renders = home.or(login_page).or(register_page);
+    let html_renders = home.or(login_page).or(register_page).or(user_page).or(note_page).or(server_info_page);
     let forms = login_page.or(do_register).or(do_login).or(create_note).or(delete_note);
     // let api
     // catch all for any other paths
