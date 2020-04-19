@@ -1,5 +1,7 @@
 Plain text statuses
 
+understand fn vs async fn in tokio
+
 marketing tagline:
 
 "An intentionally small, lightweight activitypub community"
@@ -37,6 +39,8 @@ inbox, outbox
 Note --  Represents a short written work typically less than a single paragraph in length. 
 
 Object properties: https://www.w3.org/TR/activitystreams-vocabulary/#dfn-object
+
+used https://github.com/kaj/warp-diesel-ructe-sample
 
 Webfinger
 

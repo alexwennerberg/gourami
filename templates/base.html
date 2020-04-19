@@ -1,25 +1,26 @@
 <!DOCTYPE html>
 <html lang="en">
   <head>
-    <title>{{title}}</title>
+    <title>{{global.title}}</title>
     <link rel="stylesheet" type="text/css" href="../static/css/style.css">
     <link rel="stylesheet" type="text/css" href="../static/css/bootstrap-grid.min.css">
+    <meta charset="utf-8"/>
   </head>
   <body class="monospace">
     <div class="container main">
     <div id="header">
       <div class="row navbar">
       <div class="col-sm">
-        <div class="title">{{title}}/{{page}}</div> 
+        <div class="title">{{global.title}}/{{page}}</div> 
       </div>
       <div class="col-sm text-center">
         <a href="/">t</a> <a href="/test">n</a>
       </div>
       <div class="col-sm text-right">
-        {% if logged_in %}
-        <a href="/user/{{username}}">{{username}}</a>
+        {% if global.logged_in %}
+        <a href="/user/{{global.username}}">{{global.username}}</a>
         {% else %}
-          logged out
+        <a href="/register">register</a> | <a href="login">login</a>
         {% endif %} 
       </div>
     </div>

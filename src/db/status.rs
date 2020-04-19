@@ -2,8 +2,7 @@ use chrono;
 use activitystreams::object::streams;
 use diesel::sqlite::SqliteConnection;
 use diesel::deserialize::{Queryable};
-use super::schema::note;
-use super::schema::note::dsl::*;
+use super::schema::notes;
 use diesel::prelude::*;
 use serde::{Deserialize, Serialize};
 
@@ -18,17 +17,8 @@ pub struct Note {
   pub published: String,
 }
 
-impl Note {
-    pub fn get_for_user(conn: &SqliteConnection, user_id: i32) -> Vec<Self> {
-        let results = note
-        .filter(creator_id.eq(user_id))
-        .load::<Self>(conn)
-        .expect("Error loading posts");
-        results
-    }
-}
 #[derive(Insertable, Clone)]
-#[table_name = "note"]
+#[table_name = "notes"]
 pub struct NoteInput {
   //pub id: i32, //unsigned?
   pub creator_id: i32,
