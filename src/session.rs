@@ -51,7 +51,7 @@ impl Session {
             use db::schema::users::dsl as u;
             let result  = u::users
                         .inner_join(s::sessions)
-                        .select((s::id, (u::id, u::username, u::email, u::created_time, u::bio, u::password))) // TODO figure out how to not select pw
+                        .select((s::id, (u::id, u::username, u::email, u::bio, u::created_time, u::password))) // TODO figure out how to not select pw
                         .filter(s::cookie.eq(sessionkey))
                         .first::<(i32, User)>(&POOL.get().unwrap())
                         .ok();

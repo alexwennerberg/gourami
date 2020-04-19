@@ -4,7 +4,6 @@ extern crate diesel;
 #[macro_use] extern crate log;
 #[macro_use] extern crate lazy_static;
 
-use std::convert::Infallible;
 
 use warp::{Reply, Filter, Rejection};
 use warp::http;
@@ -22,7 +21,6 @@ use diesel::sqlite::SqliteConnection;
 use diesel::insert_into;
 use serde::{Deserialize, Serialize};
 use session::{Session};
-use std::sync::{Arc, Mutex};
 use diesel::r2d2::{ConnectionManager, Pool, PooledConnection};
 
 type SqlitePool = Pool<ConnectionManager<SqliteConnection>>;
@@ -117,6 +115,7 @@ fn new_note(session: Option<Session>, req: NewNoteRequest) -> impl Reply {
     if let Some(s) = session {
         let new_note = NoteInput{
             creator_id: s.user.id,
+            creator_username: s.user.username,
             parent_id: None,
             content: req.note_input.clone(), // how to avoid clone here?
         };
@@ -225,11 +224,22 @@ fn do_login(form: LoginForm) -> impl Reply {
     }
 }
 
+fn do_logout(session: Option<Session>) -> impl Reply {
+    use db::schema::sessions::dsl::*;
+    if let Some(s) = session {
+        diesel::delete(sessions.filter(id.eq(s.id))).execute(&POOL.get().unwrap()).unwrap();
+    }
+    warp::redirect::redirect(warp::http::Uri::from_static("/"))
+}
+
 fn render_timeline(session: Option<Session>) -> impl Reply {
     // no session -- anonymous
     let global = Global::from_session(session); 
     use db::schema::notes::dsl::*;
+    // pulls a bunch of data i dont really need
     let results = notes
+        .order(id.desc())
+        .limit(250)
         .load::<Note>(&POOL.get().unwrap())
         .expect("Error loading posts");
     render_template(&TimelineTemplate{
@@ -357,6 +367,10 @@ pub async fn run_server() {
     let do_login = path("login")
         .and(form())
         .map(do_login);
+
+    let do_login = path("logout")
+        .and(session_filter())
+        .map(do_logout);
 
     // CRUD actions
     let create_note = path("create_note")

@@ -3,10 +3,10 @@
 CREATE TABLE users (
   id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
   username VARCHAR(255),
-  password VARCHAR(255),
   email VARCHAR(255),
   bio VARCHAR(1023) default "New here!",
-  created_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP 
+  created_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP ,
+  password VARCHAR(255)
 );
 
 CREATE UNIQUE INDEX users_username_idx ON users (username);
@@ -28,7 +28,8 @@ CREATE TABLE sessions (
 
 CREATE TABLE notes (
     id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
-    creator_id INTEGER,
+    creator_id INTEGER REFERENCES users(id),
+    creator_username VARCHAR(255), -- TODO: better solution here. maybe a view
     parent_id INTEGER,
     content TEXT,
     created_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP 

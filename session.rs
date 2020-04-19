@@ -48,7 +48,7 @@ impl Session {
             .and_then(|sessionkey| {
                 u::users
                     .inner_join(s::sessions)
-                    .select((s::id, (u::id, u::username, u::realname)))
+                    .select((s::id, u::username, u::realname)))
                     .filter(s::cookie.eq(&sessionkey))
                     .first::<(i32, User)>(conn)
                     .ok()

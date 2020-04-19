@@ -12,6 +12,7 @@ use serde::{Deserialize, Serialize};
 pub struct Note {
   pub id: i32,
   pub creator_id: i32,
+  pub creator_username: String,
   pub parent_id: Option<i32>,
   pub content: String,
   pub created_time: String,
@@ -22,6 +23,7 @@ pub struct Note {
 pub struct NoteInput {
   //pub id: i32, //unsigned?
   pub creator_id: i32,
+  pub creator_username: String,
   pub parent_id: Option<i32>,
   pub content: String, // can we make this a slice?
   // pub published: chrono::NaiveDateTime,

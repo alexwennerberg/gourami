@@ -54,9 +54,3 @@ pub struct NewUser<'a> {
     pub password: &'a str,
     pub email: &'a str,
 }
-
-// impl<'a> NewUser<'a> {
-// fn validate_and_insert() -> Result<Ok(()), Err> {
-// }
-//
-// }

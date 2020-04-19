@@ -2,6 +2,7 @@ table! {
     notes (id) {
         id -> Integer,
         creator_id -> Integer,
+        creator_username -> Varchar,
         parent_id -> Nullable<Integer>,
         content -> Text,
         created_time -> Timestamp,
@@ -12,10 +13,10 @@ table! {
     users (id) {
         id -> Integer,
         username -> Varchar,
-        password -> Varchar,
         email -> Varchar,
         bio -> Text,
         created_time -> Timestamp,
+        password -> Varchar,
     }
 }
 
@@ -29,5 +30,7 @@ table! {
 }
 
 joinable!(sessions -> users (user_id));
+joinable!(notes -> users (creator_id));
 
 allow_tables_to_appear_in_same_query!(sessions, users);
+allow_tables_to_appear_in_same_query!(notes, users);
