@@ -10,8 +10,8 @@ use warp::filters::{cookie, BoxedFilter};
 
 pub struct Session {
     // dbpool maybe
-    pub id: Option<i32>,
-    pub user: Option<User>,
+    pub id: i32,
+    pub user: User
 }
 
 // TODO -- figure out if database pooling is strictly necessary for security 
@@ -45,19 +45,33 @@ impl Session {
         }
         None
     }
-    pub fn from_key(conn: &SqliteConnection, sessionkey: &str) -> Self {
-        use db::schema::sessions::dsl as s;
-        use db::schema::users::dsl as u;
-        let (id, user) = u::users
-                    .inner_join(s::sessions)
-                    .select((s::id, (u::id, u::username, u::email, u::created_time)))
-                    .filter(s::cookie.eq(sessionkey))
-                    .first::<(i32, User)>(conn)
-                    .ok()
-            .map(|(i, u)| (Some(i), Some(u)))
-            .unwrap_or((None, None));
+    pub fn from_key(sess: Option<String>) -> Option<Self> {
+        if let Some(sessionkey) = sess {
+            use db::schema::sessions::dsl as s;
+            use db::schema::users::dsl as u;
+            let result  = u::users
+                        .inner_join(s::sessions)
+                        .select((s::id, (u::id, u::username, u::email, u::created_time, u::bio))) // TODO figure out how to not select pw
+                        .filter(s::cookie.eq(sessionkey))
+                        .first::<(i32, User)>(&POOL.get().unwrap())
+                        .ok();
+            if let Some(r) = result {
+                Some(Self {id: r.0, user: r.1})
+            }
+            else {
+                None
+            }
+        }
+        else {
+            // so we don't have to query db when key isnt present
+            None
+        }
 
-        debug!("Got: #{:?} {:?}", id, user);
-        Session { id, user }
     }
+}
+
+pub fn create_session_filter() -> BoxedFilter<(Option<Session>,)> {
+        cookie::optional("EXAUTH")
+        .map(move |key: Option<String>| {Session::from_key(key)})
+        .boxed()
 }

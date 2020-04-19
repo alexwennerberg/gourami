@@ -18,7 +18,7 @@
       </div>
       <div class="col-sm text-right">
         {% if global.logged_in %}
-        <a href="/user/{{global.username}}">@{{global.username}}</a>
+        <a href="/user/{{global.user.username}}">@{{global.user.username}}</a>
         {% else %}
         <a href="/register">register</a> | <a href="login">login</a>
         {% endif %} 

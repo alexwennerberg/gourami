@@ -6,14 +6,16 @@ use diesel::prelude::*;
 use serde::{Deserialize, Serialize};
 use bcrypt;
 
-#[derive(Debug, Queryable, Deserialize)]
+#[derive(Debug, Clone, Default, Queryable, Deserialize)]
 pub struct User {
     pub id: i32,
     pub username: String,
     pub email: String,
+    pub bio: String,
     pub created_time: String,
 }
 
+// TODO -- default "anonymous" user
 
 impl User {
     pub fn authenticate(
@@ -24,7 +26,7 @@ impl User {
         use crate::db::schema::users::dsl::*;
         let (user, hash) = match users
             .filter(username.eq(user))
-            .select(((id, username, email, created_time), password))
+            .select(((id, username, email, created_time, bio), password))
             .first::<(User, String)>(conn)
         {
             Ok((user, hash)) => (user, hash),

@@ -1,0 +1,9 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container">
+  {{ user.username }} {{user.id}}
+bio: {{user.bio}}
+{% include "noteslist.html" %}
+</div>
+{% endblock %}

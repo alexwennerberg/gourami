@@ -5,10 +5,12 @@ CREATE TABLE users (
   username VARCHAR(255),
   password VARCHAR(255),
   email VARCHAR(255),
+  bio VARCHAR(1023) default "New here!",
   created_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP 
 );
 
 CREATE UNIQUE INDEX users_username_idx ON users (username);
+CREATE UNIQUE INDEX users_email_idx ON users (email);
 
 CREATE TABLE activities (
   id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,

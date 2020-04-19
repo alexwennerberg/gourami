@@ -10,7 +10,7 @@ askama = "0.8"
 bcrypt = "0.7"
 cookie = "0.13"
 chrono = "*"
-diesel = { version = "1.0.0", features = ["sqlite"] }
+diesel = { version = "1.4", features = ["sqlite", "r2d2"] }
 env_logger = "0.7"
 lazy_static = "1.4.0"
 log = "0.4"

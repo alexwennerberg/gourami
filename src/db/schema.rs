@@ -11,9 +11,10 @@ table! {
 table! {
     users (id) {
         id -> Integer,
-        username -> Text,
-        password -> Text,
-        email -> Text,
+        username -> Varchar,
+        password -> Varchar,
+        email -> Varchar,
+        bio -> Text,
         created_time -> Timestamp,
     }
 }
@@ -21,7 +22,7 @@ table! {
 table! {
     sessions (id) {
         id -> Integer,
-        cookie -> Text,
+        cookie -> Varchar,
         user_id -> Integer,
         created_time -> Timestamp,
     }

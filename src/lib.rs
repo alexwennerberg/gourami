@@ -1,6 +1,10 @@
+// auth functions]
 #[macro_use]
 extern crate diesel;
 #[macro_use] extern crate log;
+#[macro_use] extern crate lazy_static;
+
+use std::convert::Infallible;
 
 use warp::{Reply, Filter, Rejection};
 use warp::http;
@@ -18,15 +22,41 @@ use diesel::sqlite::SqliteConnection;
 use diesel::insert_into;
 use serde::{Deserialize, Serialize};
 use session::{Session};
+use std::sync::{Arc, Mutex};
+use diesel::r2d2::{ConnectionManager, Pool, PooledConnection};
+
+type SqlitePool = Pool<ConnectionManager<SqliteConnection>>;
 
 mod db;
 mod session;
 
-fn establish_connection() -> SqliteConnection {
-    let url = ::std::env::var("DATABASE_URL").unwrap();
-    let conn = SqliteConnection::establish(&url).unwrap();
-    conn
+// We use a global shared sqlite connection because it's simple and performance is not 
+// very important
+
+fn pooled_sqlite() -> SqlitePool {
+    let manager = ConnectionManager::<SqliteConnection>::new(std::env::var("DATABASE_URL").unwrap());
+    Pool::new(manager).expect("Postgres connection pool could not be created")
 }
+
+
+lazy_static! {
+    static ref POOL: SqlitePool = pooled_sqlite();
+}
+
+// fn POOL.get().unwrap() -> diesel::SqliteConnection {
+//     return *POOL.get().unwrap();
+
+
+#[derive(Template)]
+#[template(path = "user.html")] 
+struct UserTemplate<'a>{
+    global: Global<'a>,
+    page: &'a str,
+    notes: Vec<Note>,
+    user: &'a User
+} 
+
+
 // TODO split into separate templates. not sure how
 #[derive(Template)]
 #[template(path = "timeline.html")] 
@@ -38,22 +68,22 @@ struct TimelineTemplate<'a>{
 
 struct Global<'a> {
     title: &'a str,
-    username: String,
+    user: User,
     logged_in: bool,
 }
 
 impl<'a> Global<'a> {
-    fn from_user(user: Option<User>) -> Self {
-        match user {
-            Some(u) => Global {
+    fn from_session(session: Option<Session>) -> Self {
+        match session {
+            Some(s) => Global {
             logged_in: true,
             title: "gourami",
-            username: u.username.clone(),
+            user: s.user.clone(),
         },
             None => Global {
             logged_in: false,
             title: "gourami",
-            username: String::from("anonymous"),
+            user: User::default(),
         }
         }
     }
@@ -79,10 +109,9 @@ pub fn render_template<T: askama::Template>(t: &T) -> http::Response<hyper::body
     .unwrap()
 }
 
-fn delete_note(note_id: i32) -> impl Reply {
+fn delete_note(session: Option<Session>, note_id: i32) -> impl Reply {
     use db::schema::notes::dsl::*;
-    let conn = establish_connection();
-    diesel::delete(notes.filter(id.eq(note_id))).execute(&conn).unwrap();
+    diesel::delete(notes.filter(id.eq(note_id))).execute(&POOL.get().unwrap()).unwrap();
     warp::redirect::redirect(warp::http::Uri::from_static("/"))
 }
 
@@ -91,19 +120,17 @@ struct NewNoteRequest {
     note_input: String, // has to be String
 }
 
-fn new_note(auth_cookie: Option<String>, req: &NewNoteRequest) -> impl Reply {
+fn new_note(session: Option<Session>, req: NewNoteRequest) -> impl Reply {
     use db::schema::notes::dsl::*;
     // create activitypub activity object
     // TODO -- micropub?
-    if let Some(k) = auth_cookie {
-        let conn = establish_connection();
-        let user = Session::from_key(&conn, &k).user.unwrap();
+    if let Some(s) = session {
         let new_note = NoteInput{
-            creator_id: user.id,
+            creator_id: s.user.id,
             parent_id: None,
             content: req.note_input.clone(), // how to avoid clone here?
         };
-        insert_into(notes).values(new_note).execute(&conn).unwrap();
+        insert_into(notes).values(new_note).execute(&POOL.get().unwrap()).unwrap();
         return warp::redirect::redirect(warp::http::Uri::from_static("/"))
     } else {
         return warp::redirect::redirect(warp::http::Uri::from_static("/"))
@@ -131,8 +158,9 @@ struct RegisterTemplate<'a>{
     global: Global<'a>,
 } 
 
-fn register_page() -> impl Reply {
-    let global = Global::from_user(None); 
+fn register_page() -> impl warp::Reply {
+    let global = Global::from_session(None); 
+    // TODO -- do... something if session is not none
     render_template(&RegisterTemplate{page: "register", global:global})
 }
 
@@ -163,8 +191,7 @@ fn do_register(form: RegisterForm) -> impl Reply{
     let hash = bcrypt::hash(&form.password, bcrypt::DEFAULT_COST).unwrap();
     let new_user = NewUser {username: &form.username, password: &hash, email: &form.email};
     // todo data validation
-    let conn = establish_connection();
-    insert_into(users).values(new_user).execute(&conn).unwrap();
+    insert_into(users).values(new_user).execute(&POOL.get().unwrap()).unwrap();
 
     // insert into database
     do_login(LoginForm{username: form.username, password: form.password})
@@ -187,13 +214,12 @@ struct LoginTemplate<'a>{
 
 fn login_page() -> impl Reply {
     // dont let you access this page if logged in
-    let global = Global::from_user(None); 
+    let global = Global::from_session(None); 
     render_template(&LoginTemplate{page: "login", login_failed: false, global:global})
 }
 
 fn do_login(form: LoginForm) -> impl Reply {
-    let conn = establish_connection();
-    if let Some(cookie) = Session::authenticate(&conn, &form.username, &form.password) {
+    if let Some(cookie) = Session::authenticate(&POOL.get().unwrap(), &form.username, &form.password) {
         http::Response::builder()
             .status(http::StatusCode::FOUND)
             .header(http::header::LOCATION, "/")
@@ -203,26 +229,23 @@ fn do_login(form: LoginForm) -> impl Reply {
         )
         .body(Body::empty()).unwrap()
     } else {
-        let global = Global::from_user(None); 
+        let global = Global::from_session(None); 
         render_template(&LoginTemplate{page: "login", login_failed: true, global:global})
         // TODO -- better error handling
     }
 }
 
-fn timeline(auth_cookie: Option<String>) -> impl Reply {
+fn render_timeline(session: Option<Session>) -> impl Reply {
     // no session -- anonymous
-    let conn = establish_connection();
-    let session = Session::from_key(&conn, &auth_cookie.unwrap());
-    let global = Global::from_user(session.user); 
-    //ownership?
+    let global = Global::from_session(session); 
     use db::schema::notes::dsl::*;
     let results = notes
-        .load::<Note>(&conn)
+        .load::<Note>(&POOL.get().unwrap())
         .expect("Error loading posts");
     render_template(&TimelineTemplate{
-    page: "timeline",
-    global: global,
-    notes: results,
+        page: "timeline",
+        global: global,
+        notes: results,
     })
 
 }
@@ -247,54 +270,67 @@ fn inbox() {
 
 pub async fn run_server() {
     env_logger::init();
+    // cors filters etc
+    let session_filter = move || session::create_session_filter().clone();
 
-    let notifications = warp::path("notifications");
-    
-    // How does this interact with tokio? who knows!
-    let test = warp::path("test").map(|| "Hello world");
+    use warp::{path, body::form};
 
-    let register_page = warp::path("register").map(|| register_page());
-    let do_register = warp::path("register")
-        .and(warp::body::form())
-        .map(|f: RegisterForm| do_register(f));
-
-    let login_page = warp::path("login").map(|| login_page());
-    let do_login = warp::path("login")
-        .and(warp::body::form())
-        .map(|f: LoginForm| do_login(f));
-
-    let logout = warp::path("logout").map(|| "Hello from logout");
-
-    // post
-    // user
-    // default page -- timeline
     let home = warp::path::end()
-        .and(warp::filters::cookie::optional("EXAUTH"))
-        .map(|auth_cookie| timeline(auth_cookie)); 
+        .and(session_filter())
+        .map(render_timeline);
+
+    // auth functions
+    let register_page = path("register")
+        .map(|| register_page());
+
+    let do_register = path("register")
+        .and(form())
+        .map(do_register);
+
+    let login_page = path("login")
+        .map(|| login_page());
+
+    let do_login = path("login")
+        .and(form())
+        .map(do_login);
+
+    // CRUD actions
+    let create_note = path("create_note")
+        .and(session_filter())
+        .and(form())
+        .map(new_note);
+
+    let delete_note = session_filter()
+        .and(warp::path::param::<i32>())
+        .and(warp::path("delete"))
+        .map(delete_note);
+
+
 
     let static_files = warp::path("static")
-            .and(warp::fs::dir("./static"));
+        .and(warp::fs::dir("./static"));
 
     // https://github.com/seanmonstar/warp/issues/42 -- how to set up diesel
     // TODO set content length limit 
     // TODO redirect via redirect in request
     // TODO secure against xss
-    let create_note = warp::path("create_note")
-        .and(warp::filters::cookie::optional("EXAUTH"))
-        .and(warp::body::form())
-        .map(|auth_cookie, note_req: NewNoteRequest| new_note(auth_cookie, &note_req));
-
-    let delete_note = warp::path::param::<i32>()
-        .and(warp::path("delete"))
-        .map(|note_id| delete_note(note_id));
-
+        // used for api based authentication
+    // let api_filter = session::create_session_filter(&POOL.get());
+    let html_renders = home.or(login_page).or(register_page);
+    let forms = login_page.or(do_register).or(do_login).or(create_note).or(delete_note);
+    // let api
     // catch all for any other paths
     let not_found = warp::any().map(|| "404 not found");
 
-    let routes = warp::get().and(
-        home.or(test).or(static_files).or(login_page).or(register_page).or(not_found))
-        .or(warp::post().and(create_note.or(delete_note).or(do_login).or(do_register)))
+    let routes = warp::get().and(html_renders)
+        .or(
+            warp::post()
+            .and(warp::body::content_length_limit(1024 * 32))
+            .and(forms))
+        .or(static_files)
+        .or(not_found)
         .with(warp::log("server"));
+
     warp::serve(routes)
         .run(([127, 0, 0, 1], 3030))
         .await;
