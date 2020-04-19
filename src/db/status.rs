@@ -14,7 +14,7 @@ pub struct Note {
   pub creator_id: i32,
   pub parent_id: Option<i32>,
   pub content: String,
-  pub published: String,
+  pub created_time: String,
 }
 
 #[derive(Insertable, Clone)]
@@ -24,6 +24,5 @@ pub struct NoteInput {
   pub creator_id: i32,
   pub parent_id: Option<i32>,
   pub content: String, // can we make this a slice?
-  pub published: String,
   // pub published: chrono::NaiveDateTime,
 }

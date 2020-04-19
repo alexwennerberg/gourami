@@ -4,7 +4,7 @@ table! {
         creator_id -> Integer,
         parent_id -> Nullable<Integer>,
         content -> Text,
-        published -> Timestamp,
+        created_time -> Timestamp,
     }
 }
 
@@ -14,6 +14,7 @@ table! {
         username -> Text,
         password -> Text,
         email -> Text,
+        created_time -> Timestamp,
     }
 }
 
@@ -22,6 +23,7 @@ table! {
         id -> Integer,
         cookie -> Text,
         user_id -> Integer,
+        created_time -> Timestamp,
     }
 }
 

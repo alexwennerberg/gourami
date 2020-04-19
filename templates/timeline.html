@@ -12,7 +12,7 @@
 {% for note in notes %}
 <div class="row">
   <div class="note">
-    <a href="/note/{{note.id}}">#{{note.id}}</a> {{note.published}} | {{note.content}} 
+    <a href="/note/{{note.id}}">>{{note.id}}</a> {{note.created_time}} <a href="user/{{note.creator_id}}">@{{note.creator_id}}</a> | {{note.content}} 
     <form method="post" action="/{{note.id}}/delete" class="inline">
         <input type="hidden" name="extra_submit_param" value="extra_submit_value">
           <button type="submit" name="submit_param" value="submit_value" class="link-button">

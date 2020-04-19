@@ -45,19 +45,15 @@ impl Session {
         }
         None
     }
-    pub fn from_key(conn: &SqliteConnection, sessionkey: Option<String>) -> Self {
-        debug!("{:?}", sessionkey);
+    pub fn from_key(conn: &SqliteConnection, sessionkey: &str) -> Self {
         use db::schema::sessions::dsl as s;
         use db::schema::users::dsl as u;
-        let (id, user) = sessionkey
-            .and_then(|sessionkey| {
-                u::users
+        let (id, user) = u::users
                     .inner_join(s::sessions)
-                    .select((s::id, (u::id, u::username, u::email)))
-                    .filter(s::cookie.eq(&sessionkey))
+                    .select((s::id, (u::id, u::username, u::email, u::created_time)))
+                    .filter(s::cookie.eq(sessionkey))
                     .first::<(i32, User)>(conn)
                     .ok()
-            })
             .map(|(i, u)| (Some(i), Some(u)))
             .unwrap_or((None, None));
 

@@ -11,7 +11,7 @@ pub struct User {
     pub id: i32,
     pub username: String,
     pub email: String,
-    // created at, updated at
+    pub created_time: String,
 }
 
 
@@ -24,7 +24,7 @@ impl User {
         use crate::db::schema::users::dsl::*;
         let (user, hash) = match users
             .filter(username.eq(user))
-            .select(((id, username, email), password))
+            .select(((id, username, email, created_time), password))
             .first::<(User, String)>(conn)
         {
             Ok((user, hash)) => (user, hash),

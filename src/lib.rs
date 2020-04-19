@@ -91,23 +91,27 @@ struct NewNoteRequest {
     note_input: String, // has to be String
 }
 
-fn new_note(req: &NewNoteRequest) -> impl Reply {
+fn new_note(auth_cookie: Option<String>, req: &NewNoteRequest) -> impl Reply {
     use db::schema::notes::dsl::*;
     // create activitypub activity object
     // TODO -- micropub?
-    let conn = establish_connection();
-    let new_note = NoteInput{
-        creator_id: 1,
-        parent_id: None,
-        published: String::from("now"),
-        content: req.note_input.clone(), // how to avoid clone here?
-    };
-    insert_into(notes).values(new_note).execute(&conn).unwrap();
+    if let Some(k) = auth_cookie {
+        let conn = establish_connection();
+        let user = Session::from_key(&conn, &k).user.unwrap();
+        let new_note = NoteInput{
+            creator_id: user.id,
+            parent_id: None,
+            content: req.note_input.clone(), // how to avoid clone here?
+        };
+        insert_into(notes).values(new_note).execute(&conn).unwrap();
+        return warp::redirect::redirect(warp::http::Uri::from_static("/"))
+    } else {
+        return warp::redirect::redirect(warp::http::Uri::from_static("/"))
+    }
 
     // generate activitypub object from post request
     // send to outbox
     // if request made from web form
-    warp::redirect::redirect(warp::http::Uri::from_static("/"))
 }
 
 // ActivityPub outbox 
@@ -208,7 +212,7 @@ fn do_login(form: LoginForm) -> impl Reply {
 fn timeline(auth_cookie: Option<String>) -> impl Reply {
     // no session -- anonymous
     let conn = establish_connection();
-    let session = Session::from_key(&conn, auth_cookie);
+    let session = Session::from_key(&conn, &auth_cookie.unwrap());
     let global = Global::from_user(session.user); 
     //ownership?
     use db::schema::notes::dsl::*;
@@ -276,8 +280,9 @@ pub async fn run_server() {
     // TODO redirect via redirect in request
     // TODO secure against xss
     let create_note = warp::path("create_note")
+        .and(warp::filters::cookie::optional("EXAUTH"))
         .and(warp::body::form())
-        .map(|note_req: NewNoteRequest| new_note(&note_req));
+        .map(|auth_cookie, note_req: NewNoteRequest| new_note(auth_cookie, &note_req));
 
     let delete_note = warp::path::param::<i32>()
         .and(warp::path("delete"))
