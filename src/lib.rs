@@ -242,10 +242,11 @@ fn render_timeline(session: Option<Session>) -> impl Reply {
         .limit(250)
         .load::<Note>(&POOL.get().unwrap())
         .expect("Error loading posts");
+    let parsed = results.into_iter().map(|n| n.parse_note_text()).collect();
     render_template(&TimelineTemplate{
         page: "timeline",
         global: global,
-        notes: results,
+        notes: parsed,
     })
 
 }
@@ -368,7 +369,7 @@ pub async fn run_server() {
         .and(form())
         .map(do_login);
 
-    let do_login = path("logout")
+    let do_logout = path("logout")
         .and(session_filter())
         .map(do_logout);
 
@@ -394,7 +395,7 @@ pub async fn run_server() {
         // used for api based authentication
     // let api_filter = session::create_session_filter(&POOL.get());
     let html_renders = home.or(login_page).or(register_page).or(user_page).or(note_page).or(server_info_page);
-    let forms = login_page.or(do_register).or(do_login).or(create_note).or(delete_note);
+    let forms = login_page.or(do_register).or(do_login).or(create_note).or(delete_note).or(do_logout);
     // let api
     // catch all for any other paths
     let not_found = warp::any().map(|| "404 not found");

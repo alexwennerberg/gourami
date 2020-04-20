@@ -1,4 +1,4 @@
-Plain text statuses
+sanitize on write to db
 
 understand fn vs async fn in tokio
 
@@ -43,6 +43,8 @@ Object properties: https://www.w3.org/TR/activitystreams-vocabulary/#dfn-object
 used https://github.com/kaj/warp-diesel-ructe-sample
 
 Webfinger
+
+Cite this https://git.cypr.io/oz/autolink-rust/src/branch/master/src/lib.rs
 
 Profiles:
 

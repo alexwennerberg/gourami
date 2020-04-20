@@ -54,3 +54,13 @@ pub struct NewUser<'a> {
     pub password: &'a str,
     pub email: &'a str,
 }
+
+// impl validate
+fn validate_username() {
+}
+
+fn validate_password() {
+}
+
+fn validate_email() {
+}

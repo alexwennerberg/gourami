@@ -1,9 +1,15 @@
+<script>
+function reply(note_id)
+{
+  document.getElementById("note_input").value='📝' + note_id + ' ';
+  document.getElementById("note_input").focus();
+}</script>
 <div class="row">
 <div class="note">
-  <a href="/note/{{note.id}}">>{{note.id}}</a> {{note.created_time}} <a
-    href="/user/{{note.creator_username}}">@{{note.creator_username}}</a> | {{note.content}} 
+  <a href="/note/{{note.id}}">📝{{note.id}}</a> {{note.created_time}} <a class="bold"
+    href="/user/{{note.creator_username}}">@{{note.creator_username}}</a> ▶ {{note.content|safe}} 
   {% if note.creator_id == global.user.id %} 
-  <form method="post" action="/{{note.id}}/delete" class="inline">
+  <a href="#" onclick="reply({{note.id}})">↪</a>
       <input type="hidden" name="extra_submit_param" value="extra_submit_value">
         <button type="submit" name="submit_param" value="submit_value" class="link-button">
               x
