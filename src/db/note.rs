@@ -2,11 +2,13 @@ use chrono;
 use std::collections::HashSet;
 use activitystreams::object::streams;
 use diesel::sqlite::SqliteConnection;
+use maplit::hashset;
 use diesel::deserialize::{Queryable};
 use super::schema::notes;
 use diesel::prelude::*;
 use serde::{Deserialize, Serialize};
 use regex::Regex;
+use std::iter::FromIterator;
 use ammonia;
 
 // Statuses are note activitystream object
@@ -32,15 +34,22 @@ pub struct NoteInput {
   // pub published: chrono::NaiveDateTime,
 }
 
-impl Note {
-    pub fn parse_note_text(mut self) -> Self {
-        self.content = parse_note_text(&self.content);
-        self
-    }
+/// used when we get content from another server
+/// Derived from the big elephant
+/// https://github.com/tootsuite/mastodon/blob/master/app/lib/sanitize_config.rb
+pub fn sanitize_remote_content(html_string: &str) -> String {
+    let ok_tags = hashset!["p", "br", "span", "a"];
+    let html_clean = ammonia::Builder::new()
+        .tags(ok_tags)
+        .clean(html_string)
+        .to_string();
+    // this is OK for now -- but we want to add microformats like mastodon does
+    html_clean
 }
 
+/// used for user-inpul
 /// Parse links -- stolen from https://git.cypr.io/oz/autolink-rust/src/branch/master/src/lib.rs
-fn parse_note_text(text: &str) -> String {
+pub fn parse_note_text(text: &str) -> String {
     // dont hack me
     let html_clean = ammonia::clean_text(text);
     if text.len() == 0 {
@@ -48,7 +57,7 @@ fn parse_note_text(text: &str) -> String {
     }
     let re = Regex::new(
         r"(?ix)
-        \b(([\w-]+:&#47;&#47;?|www[.])[^\s()<>]+(?:\([\w\d]+\)|([^[:punct:]\s]|/)))
+        \b(([\w-]+:&\#48;&\#47;?|www[.])[^\s()<>]+(?:\([\w\d]+\)|([^[:punct:]\s]|/)))
     ",
     )
     .unwrap();

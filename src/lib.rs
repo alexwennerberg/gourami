@@ -3,6 +3,7 @@
 extern crate diesel;
 #[macro_use] extern crate log;
 #[macro_use] extern crate lazy_static;
+#[macro_use] extern crate maplit;
 
 
 use warp::{Reply, Filter, Rejection};
@@ -14,7 +15,8 @@ use warp::reject::{custom, not_found};
 use hyper;
 use askama::Template;
 use env_logger;
-use db::status::{NoteInput, Note};
+use db::note::{NoteInput, Note};
+use db::note;
 use db::user::{User, NewUser};
 use diesel::prelude::*;
 use diesel::sqlite::SqliteConnection;
@@ -27,6 +29,7 @@ type SqlitePool = Pool<ConnectionManager<SqliteConnection>>;
 
 mod db;
 mod session;
+mod ap;
 
 // We use a global shared sqlite connection because it's simple and performance is not 
 // very important
@@ -117,7 +120,7 @@ fn new_note(session: Option<Session>, req: NewNoteRequest) -> impl Reply {
             creator_id: s.user.id,
             creator_username: s.user.username,
             parent_id: None,
-            content: req.note_input.clone(), // how to avoid clone here?
+            content: note::parse_note_text(&req.note_input), // how to avoid clone here?
         };
         insert_into(notes).values(new_note).execute(&POOL.get().unwrap()).unwrap();
         return warp::redirect::redirect(warp::http::Uri::from_static("/"))
@@ -242,11 +245,10 @@ fn render_timeline(session: Option<Session>) -> impl Reply {
         .limit(250)
         .load::<Note>(&POOL.get().unwrap())
         .expect("Error loading posts");
-    let parsed = results.into_iter().map(|n| n.parse_note_text()).collect();
     render_template(&TimelineTemplate{
         page: "timeline",
         global: global,
-        notes: parsed,
+        notes: results,
     })
 
 }
@@ -336,7 +338,7 @@ pub async fn run_server() {
     // cors filters etc
     let session_filter = move || session::create_session_filter().clone();
 
-    use warp::{path, body::form};
+    use warp::{path, body::json, body::form};
 
     let home = warp::path::end()
         .and(session_filter())
@@ -387,6 +389,31 @@ pub async fn run_server() {
 
     let static_files = warp::path("static")
         .and(warp::fs::dir("./static"));
+
+    // activityPub stuff
+    //
+    // POST
+    let post_user_inbox = path!("user" / String / "inbox.json" )
+        .and(json())
+        .map(ap::post_user_inbox);
+
+    let post_user_outbox = path!("user" / String / "outbox.json" )
+        .and(json())
+        .map(ap::post_user_outbox);
+
+    let get_user_outbox = path!("user" / String / "outbox.json" )
+        .map(ap::get_user_outbox);
+
+    // let get_user_inbox = path!("user" / String / "outbox.json" )
+    //     .and(json())
+    //     .map(ap::post_user_outbox);
+
+    let user_followers = path!("user" / String / "followers.json" )
+        .map(ap::user_followers);
+
+    let user_following = session_filter()
+        .and(path!("user" / String / "following.json" ))
+        .map(user_inbox);
 
     // https://github.com/seanmonstar/warp/issues/42 -- how to set up diesel
     // TODO set content length limit 

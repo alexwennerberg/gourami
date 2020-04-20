@@ -567,6 +567,7 @@ dependencies = [
  "hyper",
  "lazy_static",
  "log 0.4.8",
+ "maplit",
  "rand 0.7.3",
  "regex",
  "reqwest",
