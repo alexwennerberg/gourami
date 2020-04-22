@@ -1,5 +1,7 @@
 sanitize on write to db
 
+send notes as cleartext and html?
+
 understand fn vs async fn in tokio
 
 marketing tagline:

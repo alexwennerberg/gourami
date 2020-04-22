@@ -1,4 +1,3 @@
-use activitystreams::object::streams;
 use diesel::sqlite::SqliteConnection;
 use diesel::deserialize::{Queryable};
 use super::schema::users;

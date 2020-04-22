@@ -411,9 +411,8 @@ pub async fn run_server() {
     let user_followers = path!("user" / String / "followers.json" )
         .map(ap::user_followers);
 
-    let user_following = session_filter()
-        .and(path!("user" / String / "following.json" ))
-        .map(user_inbox);
+    let user_following = path!("user" / String / "following.json" )
+        .map(ap::user_following);
 
     // https://github.com/seanmonstar/warp/issues/42 -- how to set up diesel
     // TODO set content length limit 
