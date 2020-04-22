@@ -32,13 +32,21 @@
 .navbar {
   border: 1px solid black;
   font-size:2rem;
+  padding: .25rem;
 }
 
 .note {
-  border-top: 1px solid black;
-  border-bottom: 1px solid black;
+  background-color: #e6e6e6;
   margin: .5rem;
   padding: 3px;
+}
+
+.note-content {
+  font-family: "Helvetica", "Arial", sans-serif;
+}
+
+.padded {
+  padding: .25em;
 }
 
 #status-input {
@@ -58,9 +66,7 @@
 .text-left {
   text-align: left;
 }
-.main-content {
-  border: 1px solid black;
-}
+
 
 .footer {
   border: 1px solid black;
@@ -68,9 +74,18 @@
 
 .main {
   background-color: white;
-  width:50%;
+  max-width: 650px;
+  margin: auto;
 }
 
+.main-content {
+  border: 1px solid black;
+  float: center;
+}
+
+.timeline {
+  word-wrap: break-word;
+}
 body {
     background-color: lightgrey;
 }

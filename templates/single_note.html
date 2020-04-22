@@ -1,14 +1,11 @@
-<script>
-function reply(note_id)
-{
-  document.getElementById("note_input").value='📝' + note_id + ' ';
-  document.getElementById("note_input").focus();
-}</script>
-<div class="row">
+
 <div class="note">
-  <a href="/note/{{note.id}}">📝{{note.id}}</a> {{note.created_time}} <a class="bold"
-    href="/user/{{note.creator_username}}">@{{note.creator_username}}</a> ▶ {{note.content|safe}} 
+  <a href="/note/{{note.id}}">📝{{note.id}}</a> {{note.created_time}} <a class="bold" href="/user/{{note.creator_username}}">@{{note.creator_username}}</a>
+  <div class="note-content">
+  {{note.content|safe}} 
+  </div>
   {% if global.logged_in  %}
+  <div class="text-right note-actions">
     <a href="#" onclick="reply({{note.id}})">↪</a>
     {% endif %}
   {% if note.creator_id == global.user.id %} 
@@ -18,6 +15,5 @@ function reply(note_id)
               x
         </button>
    {%endif%}
-  </form>
-</div>
+   </div>
 </div>

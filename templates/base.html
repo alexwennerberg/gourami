@@ -3,33 +3,34 @@
   <head>
     <title>{{global.title}}</title>
     <link rel="stylesheet" type="text/css" href="../static/css/style.css">
-    <link rel="stylesheet" type="text/css" href="../static/css/bootstrap-grid.min.css">
     <meta charset="utf-8"/>
+   <script>
+    function reply(note_id)
+    {
+      document.getElementById("note_input").value='📝' + note_id + ' ';
+      document.getElementById("note_input").focus();
+    }</script> 
   </head>
   <body class="monospace">
-    <div class="container main">
+    <div class="main">
     <div id="header">
-      <div class="row navbar">
-      <div class="col-sm">
+      <div class="padded navbar">
         <div class="title">{{global.title}}/{{page}}</div> 
-      </div>
-      <div class="col-sm text-center">
         <a href="/">t</a> <a href="/test">n</a>
-      </div>
-      <div class="col-sm text-right">
+      <div class="text-right">
         {% if global.logged_in %}
         <a href="/user/{{global.user.username}}">@{{global.user.username}}</a>
         {% else %}
         <a href="/register">register</a> | <a href="login">login</a>
         {% endif %} 
       </div>
+      </div>
     </div>
-    </div>
-    <div class="row main-content">
+    <div class="padded main-content">
       {% block content %}{% endblock %}
-       </div>
-    <div class="row footer">
-      Built with- <a href="https://git.sr.ht/~alexwennerberg/gourami-social">gourami</a>
+   </div>
+    <div class="padded footer">
+      Built with <a href="https://git.sr.ht/~alexwennerberg/gourami-social">gourami</a>
     </div>
     </div>
   </body>

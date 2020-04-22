@@ -2,8 +2,7 @@
 
 {% block content %}
 <div class="container">
-  <div class="row">
-  <div class="col md">
+  <div class="padded">
   <b>user:</b> {{ user.username }} (#{{user.id}})
   <br>
   <b>bio:</b> {{user.bio}}
@@ -17,7 +16,6 @@
                                                 class="link-button">logout</button</form>
   </div>
   {% endif %}
-  </div>
 {% include "noteslist.html" %}
 </div>
 {% endblock %}
