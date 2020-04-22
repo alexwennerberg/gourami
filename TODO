@@ -1,6 +1,10 @@
+A nice big new feature would be event planning
+
 sanitize on write to db
 
-send notes as cleartext and html?
+parse markdown?
+
+send notes as cleartext and html? cleanup html parsing.
 
 understand fn vs async fn in tokio
 
