@@ -79,6 +79,9 @@ a:link, a:visited {
   text-align: left;
 }
 
+.text-block {
+  font-family: "Helvetica", "Arial", sans-serif;
+}
 
 .footer {
   border-top: 1px solid lightgrey;
