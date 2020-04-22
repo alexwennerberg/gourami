@@ -81,6 +81,7 @@ a:link, a:visited {
 
 
 .footer {
+  border-top: 1px solid lightgrey;
 }
 
 .main {
