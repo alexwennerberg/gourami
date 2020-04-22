@@ -8,7 +8,6 @@
   color: blue;
   text-decoration: underline;
   cursor: pointer;
-  font-size: 1em;
   font-family: "courier", monospace
 }
 .link-button:focus {
@@ -30,19 +29,24 @@
   font-weight: 900;
 }
 .navbar {
-  border: 1px solid black;
-  font-size:2rem;
-  padding: .25rem;
+  border-bottom: 1px solid lightgrey;
+  font-size:2em;
+  padding: .25em;
 }
 
 .note {
-  background-color: #e6e6e6;
-  margin: .5rem;
+  background-color: #F0F0F0;
+  margin: .5em;
   padding: 3px;
+}
+
+.note-meta {
 }
 
 .note-content {
   font-family: "Helvetica", "Arial", sans-serif;
+  margin-left: .5em;
+  margin-right: .5em;
 }
 
 .padded {
@@ -69,23 +73,23 @@
 
 
 .footer {
-  border: 1px solid black;
 }
 
 .main {
   background-color: white;
-  max-width: 650px;
+  max-width: 900px;
   margin: auto;
 }
 
 .main-content {
-  border: 1px solid black;
   float: center;
 }
 
 .timeline {
   word-wrap: break-word;
 }
+
 body {
-    background-color: lightgrey;
+    background-color: #999ac4;
+    font-size: 18px;
 }

@@ -1,6 +1,8 @@
 
 <div class="note">
+  <div class="note-meta">
   <a href="/note/{{note.id}}">📝{{note.id}}</a> {{note.created_time}} <a class="bold" href="/user/{{note.creator_username}}">@{{note.creator_username}}</a>
+  </div>
   <div class="note-content">
   {{note.content|safe}} 
   </div>
@@ -14,6 +16,7 @@
         <button type="submit" name="submit_param" value="submit_value" class="link-button">
               x
         </button>
-   {%endif%}
+   </form>
    </div>
+   {%endif%}
 </div>
