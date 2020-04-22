@@ -70,8 +70,22 @@ impl Session {
     }
 }
 
-pub fn create_session_filter() -> BoxedFilter<(Option<Session>,)> {
+pub fn create_session_filter(optional: bool) -> BoxedFilter<(Option<Session>,)> {
+    if optional {
         cookie::optional("EXAUTH")
         .map(move |key: Option<String>| {Session::from_key(key)})
         .boxed()
+    } else {
+        cookie::cookie("EXAUTH")
+        .and_then(|key: String| async move {
+            let s = Session::from_key(Some(key));
+            if s.is_none() {
+                Err(warp::reject::reject())
+            }
+            else {
+                Ok(Some(s.unwrap()))
+            }
+            })
+        .boxed()
+    }
 }

@@ -1,21 +1,21 @@
 {% extends "base.html" %}
 
 {% block content %}
-<div class="container">
+<div>
   <div class="padded">
   <b>user:</b> {{ user.username }} (#{{user.id}})
   <br>
   <b>bio:</b> {{user.bio}}
-  </div>
   {% if global.user.id == user.id%}
-  <div class="col md text-right">
-    edit
+  <div>
+    <a href="/user/{{user.id}}/edit">edit</a>
     <br>
       <form method="post" action="/logout" class="inline">
       <button type="submit" name="submit_param" value="submit_value"
                                                 class="link-button">logout</button</form>
   </div>
   {% endif %}
+  </div>
 {% include "noteslist.html" %}
 </div>
 {% endblock %}

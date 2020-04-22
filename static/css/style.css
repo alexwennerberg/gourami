@@ -5,10 +5,13 @@
 .link-button {
   background: none;
   border: none;
-  color: blue;
+  color: #009475;
+  display: inline;
   text-decoration: underline;
   cursor: pointer;
-  font-family: "courier", monospace
+  padding: 0;
+  font-family: "courier", monospace;
+  font-size: 1em;
 }
 .link-button:focus {
   outline: none;

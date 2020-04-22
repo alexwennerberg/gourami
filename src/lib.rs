@@ -5,6 +5,7 @@ extern crate diesel;
 #[macro_use] extern crate lazy_static;
 #[macro_use] extern crate maplit;
 
+use std::convert::Infallible;
 
 use warp::{Reply, Filter, Rejection};
 use warp::http;
@@ -264,6 +265,7 @@ struct ServerInfoTemplate<'a> {
 #[template(path = "error.html")] 
 struct ErrorTemplate<'a> {
     global: Global<'a>,
+    page: &'a str,
     error_message: &'a str
 }
 
@@ -302,7 +304,7 @@ fn note_page(session: Option<Session>, note_id: i32) -> impl Reply {
         render_template(&NoteTemplate{global: global, note: n.clone(), page: &n.id.to_string()})
     }
     else {
-        render_template(&ErrorTemplate{global: global, error_message: "Note not found"})
+        render_template(&ErrorTemplate{global: global, page: "error", error_message: "Note not found"})
     }
     // TODO -- fetch replies
 }
@@ -329,14 +331,21 @@ fn user_page(session: Option<Session>, user_name: String) -> impl Reply {
         })
     }
     else {
-        render_template(&ErrorTemplate{global: global, error_message: "User not found"})
+        render_template(&ErrorTemplate{global: global, page: "error", error_message: "User not found"})
     }
+}
+
+async fn error_page(err: Rejection) -> Result<impl Reply, Infallible>{
+    Ok(render_template(&ErrorTemplate{global: Global::from_session(None), page: "error", error_message: "You do not have access to this page."}))
 }
 
 pub async fn run_server() {
     env_logger::init();
     // cors filters etc
-    let session_filter = move || session::create_session_filter().clone();
+    
+    // NOT TESTED YET
+    let public = false; // std::env::var("PUBLIC").unwrap_or("false");
+    let session_filter = move || session::create_session_filter(public).clone();
 
     use warp::{path, body::json, body::form};
 
@@ -367,7 +376,7 @@ pub async fn run_server() {
     let login_page = path("login")
         .map(|| login_page());
 
-    let do_login = path("login")
+    let do_login = path("do_login")
         .and(form())
         .map(do_login);
 
@@ -424,7 +433,6 @@ pub async fn run_server() {
     let forms = login_page.or(do_register).or(do_login).or(create_note).or(delete_note).or(do_logout);
     // let api
     // catch all for any other paths
-    let not_found = warp::any().map(|| "404 not found");
 
     let routes = warp::get().and(html_renders)
         .or(
@@ -432,8 +440,8 @@ pub async fn run_server() {
             .and(warp::body::content_length_limit(1024 * 32))
             .and(forms))
         .or(static_files)
-        .or(not_found)
-        .with(warp::log("server"));
+        .with(warp::log("server"))
+        .recover(error_page);
 
     warp::serve(routes)
         .run(([127, 0, 0, 1], 3030))

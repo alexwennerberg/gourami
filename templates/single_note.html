@@ -5,15 +5,14 @@
 {% if global.logged_in  %}
   <a href="#" onclick="reply({{note.id}})">↪</a>
   {% endif %}
- </div>
   {% if note.creator_id == global.user.id %} 
   <form method="post" action="/{{note.id}}/delete" class="inline">
       <input type="hidden" name="extra_submit_param" value="extra_submit_value">
-        <button type="submit" name="submit_param" value="submit_value" class="link-button">
-              x
-        </button>
+        <button type="submit" name="submit_param" value="submit_value"
+          class="link-button">✕</button>
    </form>
    {%endif%}
+   </div>
   <div class="note-content">
   {{note.content|safe}} 
   </div>
