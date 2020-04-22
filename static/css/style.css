@@ -13,9 +13,6 @@
 .link-button:focus {
   outline: none;
 }
-.link-button:active {
-  color:red;
-}
 
 .monospace {
   font-family: "courier", monospace
@@ -61,10 +58,26 @@ a:link, a:visited {
   padding: .25em;
 }
 
-#status-input {
-  width: 80%;
+#note_input {
+  width: 100%;
   resize: none;
   margin: 5px; 
+}
+
+.submit-button-style {
+  background-color: #001f94; /* Green */
+  border: none;
+  color: white;
+  padding: 2px 4px;
+  margin: 5px;
+  text-align: center;
+  text-decoration: none;
+  font-size: 16px;
+}
+
+.input-box {
+  margin: 0 auto;
+  width: 70%;
 }
 
 .text-right {
