@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
   <head>
-    <title>{{global.title}}</title>
+    <title>🐟{{global.title}}</title>
     <link rel="stylesheet" type="text/css" href="../static/css/style.css">
     <meta charset="utf-8"/>
    <script>
@@ -15,15 +15,13 @@
     <div class="main">
     <div id="header">
       <div class="padded navbar">
-        <div class="title">{{global.title}}/{{page}}</div> 
-        <a href="/">t</a> <a href="/test">n</a>
-      <div class="text-right">
-        {% if global.logged_in %}
+        <div class="title">🐟{{global.title}}/{{page}}</div> 
+        <div class="navlinks">
+        <a href="/">t</a>,<a href="/test">n</a>{% if global.logged_in %}
         <a href="/user/{{global.user.username}}">@{{global.user.username}}</a>
-        {% else %}
-        <a href="/register">register</a> | <a href="login">login</a>
+        {% else %},<a href="/register">register</a>,<a href="login">login</a>
         {% endif %} 
-      </div>
+        </div>
       </div>
     </div>
     <div class="padded main-content">

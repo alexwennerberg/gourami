@@ -23,6 +23,7 @@
 
 .title {
   font-weight: 900;
+  font-size:2em;
 }
 
 .bold {
@@ -30,8 +31,15 @@
 }
 .navbar {
   border-bottom: 1px solid lightgrey;
-  font-size:2em;
   padding: .25em;
+}
+
+.navlinks {
+  font-size: 1.5em;
+}
+
+a:link, a:visited {
+  color:#009475;
 }
 
 .note {
@@ -90,6 +98,6 @@
 }
 
 body {
-    background-color: #999ac4;
+    background-color: #006994;
     font-size: 18px;
 }
