@@ -1,8 +1,9 @@
 {% extends "base.html" %}
 {% block content %}
 <div class="container">
-<form action="/register" method="POST">
+  <form action="/do_register?key={{key}}" method="POST">
   <div class="container">
+    {% if keyed %}
     <label for="email"><b>Email</b></label>
     <input type="text" placeholder="Enter Email" name="email" required>
     <br>
@@ -13,6 +14,9 @@
     <label for="password"><b>Password</b></label>
     <input type="password" placeholder="Enter Password" name="password" required>
     <button class="submit-button-style" type="submit">Register</button>
+    {% else %}
+    Invalid registration key -- contact the admin for an invite.
+    {% endif %}
     <br>
   </div>
 </form>

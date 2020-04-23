@@ -10,6 +10,12 @@ table! {
 }
 
 table! {
+    registration_keys (value) {
+        value -> Varchar,
+    }
+}
+
+table! {
     users (id) {
         id -> Integer,
         username -> Varchar,

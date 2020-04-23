@@ -12,6 +12,10 @@ CREATE TABLE users (
 CREATE UNIQUE INDEX users_username_idx ON users (username);
 CREATE UNIQUE INDEX users_email_idx ON users (email);
 
+CREATE TABLE registration_keys (
+  value VARCHAR PRIMARY KEY
+);
+
 CREATE TABLE activities (
   id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
   json_text TEXT

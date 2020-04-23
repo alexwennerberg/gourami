@@ -6,6 +6,34 @@ use serde::{Deserialize, Serialize};
 use bcrypt;
 
 #[derive(Debug, Clone, Default, Queryable, Deserialize)]
+pub struct RegistrationKey {
+    value: String,
+}
+
+impl RegistrationKey {
+    pub fn is_valid(conn: &SqliteConnection, key: &str) -> bool {
+        use crate::db::schema::registration_keys::dsl::*;
+        let key: Option<String> = registration_keys
+            .select(value)
+            .filter(value.eq(key))
+            .first(conn)
+            .ok();
+        match key {
+            Some(_) => true,
+            None => false
+        }
+    }
+
+    pub fn clear_key(conn: &SqliteConnection, key: &str) {
+        use crate::db::schema::registration_keys::dsl::*;
+            diesel::delete(
+                registration_keys
+                .filter(value.eq(key)))
+                .execute(conn).ok();
+    }
+}
+
+#[derive(Debug, Clone, Default, Queryable, Deserialize)]
 pub struct User {
     pub id: i32,
     pub username: String,

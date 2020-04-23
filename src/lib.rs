@@ -18,7 +18,7 @@ use askama::Template;
 use env_logger;
 use db::note::{NoteInput, Note};
 use db::note;
-use db::user::{User, NewUser};
+use db::user::{RegistrationKey, User, NewUser};
 use diesel::prelude::*;
 use diesel::sqlite::SqliteConnection;
 use diesel::insert_into;
@@ -148,13 +148,24 @@ fn send_to_outbox(activity: bool) { // activitystreams object
 #[template(path = "register.html")] 
 struct RegisterTemplate<'a>{
     page: &'a str,
+    keyed: bool,
+    key: &'a str,
     global: Global<'a>,
 } 
 
-fn register_page() -> impl warp::Reply {
+fn register_page(query_params: serde_json::Value) -> impl warp::Reply {
     let global = Global::from_session(None); 
+    let keyed;
+    if let Some(k) = query_params.get("key") {
+        let key_str = k.as_str().unwrap();
+        keyed = RegistrationKey::is_valid(&POOL.get().unwrap(), &key_str);
+        render_template(&RegisterTemplate{keyed: keyed, key: key_str,  page: "register", global:global})
+    }
+    else {
+        keyed = false;
+        render_template(&RegisterTemplate{keyed: keyed, key: "",  page: "register", global:global})
+    }
     // TODO -- do... something if session is not none
-    render_template(&RegisterTemplate{page: "register", global:global})
 }
 
 
@@ -179,14 +190,23 @@ impl RegisterForm {
 }
 
 // TODO move all authentication
-fn do_register(form: RegisterForm) -> impl Reply{
+fn do_register(form: RegisterForm, query_params: serde_json::Value) -> impl Reply {
+    let conn = &POOL.get().unwrap();
     use db::schema::users::dsl::*;
-    let hash = bcrypt::hash(&form.password, bcrypt::DEFAULT_COST).unwrap();
-    let new_user = NewUser {username: &form.username, password: &hash, email: &form.email};
-    // todo data validation
-    insert_into(users).values(new_user).execute(&POOL.get().unwrap()).unwrap();
+    if let Some(k) = query_params.get("key") {
+        let keyed = RegistrationKey::is_valid(&POOL.get().unwrap(), &k.as_str().unwrap());
+        if keyed {
+            let hash = bcrypt::hash(&form.password, bcrypt::DEFAULT_COST).unwrap();
+            let new_user = NewUser {username: &form.username, password: &hash, email: &form.email};
+            // todo data validation
+            insert_into(users)
+                .values(new_user)
+                .execute(conn).unwrap();
 
-    // insert into database
+        // insert into database
+        }
+    }
+    // not good
     do_login(LoginForm{username: form.username, password: form.password})
 }
 
@@ -347,7 +367,7 @@ pub async fn run_server() {
     let public = false; // std::env::var("PUBLIC").unwrap_or("false");
     let session_filter = move || session::create_session_filter(public).clone();
 
-    use warp::{path, body::json, body::form};
+    use warp::{path, body::json, body::form, filters::query::query};
 
     let home = warp::path::end()
         .and(session_filter())
@@ -367,10 +387,12 @@ pub async fn run_server() {
 
     // auth functions
     let register_page = path("register")
-        .map(|| register_page());
+        .and(query())
+        .map(register_page);
 
-    let do_register = path("register")
+    let do_register = path("do_register")
         .and(form())
+        .and(query())
         .map(do_register);
 
     let login_page = path("login")
