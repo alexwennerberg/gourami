@@ -78,13 +78,6 @@ impl<'a> Global<'a> {
         }
     }
 }
-// impl default
-
-#[derive(Template)]
-#[template(path = "notifications.html")] 
-struct NotificationTemplate<'a>{
-    name: &'a str,
-}
 
 pub fn render_template<T: askama::Template>(t: &T) -> http::Response<hyper::body::Body> {
     match t.render() {
