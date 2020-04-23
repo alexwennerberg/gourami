@@ -6,6 +6,9 @@ An intentionally small, ultra-lightweight social media network (ActivityPub inte
 
 Link to doc, summary here
 
+* Invite-only
+* Closed by default
+
 ## Dependencies:
 
 sqlite3

@@ -6,6 +6,7 @@ extern crate diesel;
 #[macro_use] extern crate maplit;
 
 use std::convert::Infallible;
+use zxcvbn::zxcvbn;
 
 use warp::{Reply, Filter, Rejection};
 use warp::http;
@@ -169,14 +170,11 @@ struct RegisterForm {
 
 
 impl RegisterForm {
-    fn validate(self) -> Result<Self, &'static str> {
-        if self.email.is_empty() {
-            Err("A email must be given")
-        } else if self.password.len() < 3 {
-            Err("Please use a better password")
-        } else {
-            Ok(self)
+    fn validate(&self) -> Result<(), &'static str> {
+        if zxcvbn(&self.password, &[]).unwrap().score() < 1 {
+            return Err("Please come up with a more secure password.")
         }
+        Ok(())
     }
 }
 
@@ -184,6 +182,9 @@ impl RegisterForm {
 fn do_register(form: RegisterForm, query_params: serde_json::Value) -> impl Reply {
     let conn = &POOL.get().unwrap();
     use db::schema::users::dsl::*;
+    if form.validate().is_err(){ // TODO catch better
+        return do_login(LoginForm{username: form.username, password: form.password})
+    }
     if let Some(k) = query_params.get("key") {
         let k_string = &k.as_str().unwrap();
         let keyed = RegistrationKey::is_valid(conn, k_string);
