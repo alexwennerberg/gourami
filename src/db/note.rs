@@ -1,13 +1,7 @@
-use chrono;
-use std::collections::HashSet;
-use diesel::sqlite::SqliteConnection;
 use maplit::hashset;
-use diesel::deserialize::{Queryable};
 use super::schema::notes;
-use diesel::prelude::*;
 use serde::{Deserialize, Serialize};
 use regex::Regex;
-use std::iter::FromIterator;
 use ammonia;
 
 // Statuses are note activitystream object

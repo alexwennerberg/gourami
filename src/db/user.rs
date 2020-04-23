@@ -1,8 +1,7 @@
 use diesel::sqlite::SqliteConnection;
-use diesel::deserialize::{Queryable};
 use super::schema::users;
 use diesel::prelude::*;
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize};
 use bcrypt;
 
 #[derive(Debug, Clone, Default, Queryable, Deserialize)]

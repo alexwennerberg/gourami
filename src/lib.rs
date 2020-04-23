@@ -10,8 +10,6 @@ use std::convert::Infallible;
 use warp::{Reply, Filter, Rejection};
 use warp::http;
 use warp::hyper::Body;
-use warp::reply::{Response};
-use warp::reject::{custom, not_found};
 
 use hyper;
 use askama::Template;
@@ -22,9 +20,9 @@ use db::user::{RegistrationKey, User, NewUser};
 use diesel::prelude::*;
 use diesel::sqlite::SqliteConnection;
 use diesel::insert_into;
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize};
 use session::{Session};
-use diesel::r2d2::{ConnectionManager, Pool, PooledConnection};
+use diesel::r2d2::{ConnectionManager, Pool};
 
 type SqlitePool = Pool<ConnectionManager<SqliteConnection>>;
 
@@ -194,7 +192,9 @@ fn do_register(form: RegisterForm, query_params: serde_json::Value) -> impl Repl
     let conn = &POOL.get().unwrap();
     use db::schema::users::dsl::*;
     if let Some(k) = query_params.get("key") {
-        let keyed = RegistrationKey::is_valid(&POOL.get().unwrap(), &k.as_str().unwrap());
+        let k_string = &k.as_str().unwrap();
+        let keyed = RegistrationKey::is_valid(conn, k_string);
+        RegistrationKey::clear_key(conn, k_string);
         if keyed {
             let hash = bcrypt::hash(&form.password, bcrypt::DEFAULT_COST).unwrap();
             let new_user = NewUser {username: &form.username, password: &hash, email: &form.email};
@@ -357,6 +357,13 @@ fn user_page(session: Option<Session>, user_name: String) -> impl Reply {
 
 async fn error_page(err: Rejection) -> Result<impl Reply, Infallible>{
     Ok(render_template(&ErrorTemplate{global: Global::from_session(None), page: "error", error_message: "You do not have access to this page."}))
+}
+
+
+// Url query
+#[derive(Deserialize)]
+struct Page {
+    page_num: i32
 }
 
 pub async fn run_server() {

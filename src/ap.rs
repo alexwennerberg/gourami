@@ -1,6 +1,5 @@
-use log::{debug, info};
-use serde_json::{Result, Value};
-use std::error::Error;
+use log::{debug};
+use serde_json::{Value};
 use activitystreams::activity::{Create, Accept, Follow, Reject, Announce, Delete, Activity};
 
 // gonna be big

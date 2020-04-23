@@ -29,12 +29,7 @@ impl Session {
             let result = diesel::insert_into(sessions)
                 .values((user_id.eq(user.id), cookie.eq(&secret)))
                 .execute(conn);
-            let session_id = sessions.select(id)
-                .filter(cookie.eq(&secret))
-                .first::<i32>(conn);
-            if let Ok(s_id) = result {
-                // self.id = Some(s_id as i32);
-                // self.user = Some(user);
+            if let Ok(_) = result {
                 return Some(secret);
             } else {
                 error!(
