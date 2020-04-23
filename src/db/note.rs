@@ -1,19 +1,29 @@
 use maplit::hashset;
 use super::schema::notes;
-use serde::{Deserialize, Serialize};
+use serde::{de::Error, Deserialize, Serialize, Deserializer}; 
 use regex::Regex;
 use ammonia;
 
-// Statuses are note activitystream object
 
 #[derive(Queryable, Clone, Deserialize, Serialize)]
-pub struct Note {
+pub struct Note { // rename RenderedNote
   pub id: i32,
   pub creator_id: i32,
   pub creator_username: String,
   pub parent_id: Option<i32>,
+  // deserialize wiht
   pub content: String,
   pub created_time: String,
+}
+
+/// Content in the DB is stored in plaintext (WILL BE)
+/// We want to render it so that it is rendered in HTML
+/// This basically just means escaping characters and adding 
+/// automatic URL parsing
+fn render_content<'de, D>(deserializer: D) -> Result<String, D::Error>
+where D: Deserializer<'de> {
+   let s: &str = Deserialize::deserialize(deserializer)?;
+    return Ok(parse_note_text(s));
 }
 
 #[derive(Insertable, Clone)]
@@ -27,23 +37,16 @@ pub struct NoteInput {
   // pub published: chrono::NaiveDateTime,
 }
 
-/// used when we get content from another server
-/// Derived from the big elephant
-/// https://github.com/tootsuite/mastodon/blob/master/app/lib/sanitize_config.rb
-pub fn sanitize_remote_content(html_string: &str) -> String {
-    let ok_tags = hashset!["p", "br", "span", "a"];
-    let html_clean = ammonia::Builder::new()
-        .tags(ok_tags)
-        .clean(html_string)
-        .to_string();
-    // this is OK for now -- but we want to add microformats like mastodon does
-    html_clean
+impl NoteInput {
+    // implement a better constructor here
 }
 
 /// used for user-input
 /// Parse links -- stolen from https://git.cypr.io/oz/autolink-rust/src/branch/master/src/lib.rs
+/// TODO -- sanitize before write and then render links on read
 pub fn parse_note_text(text: &str) -> String {
-    // dont hack me
+    // There shouldn't be any html tags in the db, but
+    // Let's strip it out just in case
     let html_clean = ammonia::clean_text(text);
     if text.len() == 0 {
         return String::new();
@@ -67,7 +70,6 @@ pub fn parse_note_text(text: &str) -> String {
 	let replace_str = "<a href=\"/user/$2\">$0</a>";
 	let people_parsed = person_regex.replace_all(&notes_parsed, &replace_str as &str).to_string();
     // TODO get mentions too
-    println!("{}", people_parsed);
     return people_parsed;
 }
 
