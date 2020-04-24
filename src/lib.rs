@@ -466,7 +466,13 @@ pub async fn run_server() {
         .with(warp::log("server"))
         .recover(error_page);
 
-    warp::serve(routes)
-        .run(([127, 0, 0, 1], 3030))
-        .await;
+    match std::env::var("GOURAMI_ENV").unwrap().as_str() {
+        "PROD" => warp::serve(routes)
+            .tls()
+            .cert_path(&std::env::var("CERT_PATH").unwrap())
+            .key_path(&std::env::var("KEY_PATH").unwrap())
+            .run(([0, 0, 0, 0], 443))
+            .await ,
+        _ => warp::serve(routes).run(([127,0,0,1], 3030)).await
     }
+}
