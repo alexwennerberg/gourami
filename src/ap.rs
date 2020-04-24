@@ -22,7 +22,7 @@ mod tests {
     use super::*;
     #[test]
     fn test_empty_string() {
-        parse_unstructured_ap("{}");
+        process_unstructured_ap("{}");
     }
 
     #[test]
@@ -74,7 +74,7 @@ mod tests {
                 }
               }
             }"#;
-        parse_unstructured_ap(mastodon_create_note_json_string);
+        process_unstructured_ap(mastodon_create_note_json_string);
             }
         }
 
