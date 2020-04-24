@@ -3,7 +3,7 @@
   <div class="note-meta">
   <a href="/note/{{note.id}}">📝{{note.id}}</a> {{note.created_time}} <a class="bold" href="/user/{{note.creator_username}}">@{{note.creator_username}}</a>
 {% if global.logged_in  %}
-  <a href="#" onclick="reply({{note.id}})">↪</a>
+<a href="#" onclick="reply({{note.id}}, '{{note.creator_username}}')">↪</a>
   {% endif %}
   {% if note.creator_id == global.user.id %} 
   <form method="post" action="/{{note.id}}/delete" class="inline">

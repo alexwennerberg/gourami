@@ -6,9 +6,9 @@
     <meta charset="utf-8"/>
     <meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1"/>
    <script>
-    function reply(note_id)
+    function reply(note_id, user_name)
     {
-      document.getElementById("note_input").value='📝' + note_id + ' ';
+      document.getElementById("note_input").value='📝' + note_id + ' @' + user_name + ' ';
       document.getElementById("note_input").focus();
     }</script> 
   </head>
@@ -18,7 +18,7 @@
       <div class="padded navbar">
         <div class="title">🐟{{global.title}}/{{page}}</div> 
         <div class="navlinks">
-        <a href="/">timeline</a>,<a href="/server_info">server</a>{% if global.logged_in %},<a href="/user/{{global.user.username}}">@{{global.user.username}}</a>{% else %},<a href="login">login</a>{% endif %}
+        <a href="/">timeline</a> <a href="/server_info">server</a>{% if global.logged_in %} <a href="/user/{{global.user.username}}">@{{global.user.username}}</a>{% else %} <a href="login">login</a>{% endif %}
         </div>
       </div>
     </div>

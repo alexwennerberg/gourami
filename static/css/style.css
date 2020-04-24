@@ -66,6 +66,7 @@ a:link, a:visited {
   width: 100%;
   resize: none;
   margin: 5px; 
+  font-size: 1em;
 }
 
 .submit-button-style {
