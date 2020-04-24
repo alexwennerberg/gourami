@@ -325,7 +325,6 @@ fn note_page(session: Option<Session>, note_id: i32) -> impl Reply {
 
 fn user_page(session: Option<Session>, user_name: String) -> impl Reply {
     let global = Global::from_session(session); 
-    use db::schema::notes::dsl::*;
     use db::schema::users::dsl::*;
     let conn = &POOL.get().unwrap();
     let user: Option<User> = users
@@ -333,8 +332,10 @@ fn user_page(session: Option<Session>, user_name: String) -> impl Reply {
         .first::<User>(conn)
         .ok();
     if let Some(u) = user {
+        use db::schema::notes::dsl::*;
         let results = notes
             .filter(creator_id.eq(u.id))
+            .order(id.desc())
             .load::<Note>(conn)
             .expect("Error loading posts");
         render_template(&UserTemplate{
