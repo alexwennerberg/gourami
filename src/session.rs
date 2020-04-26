@@ -8,10 +8,13 @@ use diesel::sqlite::SqliteConnection;
 use warp::filters::{cookie, BoxedFilter};
 
 
+#[derive(Queryable)]
 pub struct Session {
     // dbpool maybe
-    pub id: i32,
-    pub user: User
+    id: i32,
+    cookie: String,
+    user_id: i32,
+    created_time: String,
 }
 
 // TODO -- figure out if database pooling is strictly necessary for security 
@@ -40,21 +43,18 @@ impl Session {
         }
         None
     }
-    pub fn from_key(sess: Option<String>) -> Option<Self> {
+    pub fn from_key(sess: Option<String>) -> Option<User> {
         if let Some(sessionkey) = sess {
             use db::schema::sessions::dsl as s;
             use db::schema::users::dsl as u;
             let result  = u::users
-                        .inner_join(s::sessions)
-                        .select((s::id, (u::id, u::username, u::email, u::bio, u::created_time, u::password))) // TODO figure out how to not select pw
-                        .filter(s::cookie.eq(sessionkey))
-                        .first::<(i32, User)>(&POOL.get().unwrap())
+                    .inner_join(s::sessions)
+                    .filter(s::cookie.eq(sessionkey))
+                    .first::<(User,Session)>(&POOL.get().unwrap())
                         .ok();
-            if let Some(r) = result {
-                Some(Self {id: r.0, user: r.1})
-            }
-            else {
-                None
+            match result {
+                Some(r) => Some(r.0),
+                None => None
             }
         }
         else {
@@ -65,7 +65,7 @@ impl Session {
     }
 }
 
-pub fn create_session_filter(optional: bool) -> BoxedFilter<(Option<Session>,)> {
+pub fn create_session_filter(optional: bool) -> BoxedFilter<(Option<User>,)> {
     if optional {
         cookie::optional("EXAUTH")
         .map(move |key: Option<String>| {Session::from_key(key)})
@@ -75,7 +75,7 @@ pub fn create_session_filter(optional: bool) -> BoxedFilter<(Option<Session>,)> 
         .and_then(|key: String| async move {
             let s = Session::from_key(Some(key));
             if s.is_none() {
-                Err(warp::reject::reject())
+                Err(warp::reject::reject()) // todo -- add custom rejection
             }
             else {
                 Ok(Some(s.unwrap()))

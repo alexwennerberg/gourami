@@ -32,10 +32,12 @@ CREATE TABLE sessions (
 
 CREATE TABLE notes (
     id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
-    creator_id INTEGER REFERENCES users(id),
-    creator_username VARCHAR(255), -- TODO: better solution here. maybe a view
+    user_id INTEGER REFERENCES users(id),
     parent_id INTEGER,
     content TEXT,
     created_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP 
 );
 
+
+/* CREATE TABLE notifications ( */
+/* ) */

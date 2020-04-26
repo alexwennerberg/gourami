@@ -3,13 +3,16 @@ use super::schema::notes;
 use serde::{de::Error, Deserialize, Serialize, Deserializer}; 
 use regex::Regex;
 use ammonia;
+use crate::db::user::User; // weird import
 
-
-#[derive(Queryable, Clone, Deserialize, Serialize)]
+/// This isn't queryable directly,
+/// It only works when joined with the users table
+///
+#[derive(Queryable, Associations, Clone, Deserialize, Serialize)]
+#[belongs_to(User)]
 pub struct Note { // rename RenderedNote
   pub id: i32,
-  pub creator_id: i32,
-  pub creator_username: String,
+  pub user_id: i32,
   pub parent_id: Option<i32>,
   // deserialize wiht
   pub content: String,
@@ -30,15 +33,19 @@ where D: Deserializer<'de> {
 #[table_name = "notes"]
 pub struct NoteInput {
   //pub id: i32, //unsigned?
-  pub creator_id: i32,
-  pub creator_username: String,
+  pub user_id: i32,
   pub parent_id: Option<i32>,
   pub content: String, // can we make this a slice?
   // pub published: chrono::NaiveDateTime,
 }
 
-impl NoteInput {
-    // implement a better constructor here
+pub fn get_reply(note_text: &str) -> Option<i32> {
+    /// We render the first >>[num] or note emoji as a reply, for threading.
+    let re = Regex::new(r"\B(📝|>>)(\d+)").unwrap();
+    match re.captures(note_text) {
+        Some(t) => t.get(2).unwrap().as_str().parse().ok(),
+        None => None
+   }
 }
 
 /// used for user-input
@@ -123,5 +130,17 @@ mod tests {
         let src = "📝123 cool post >>456";
         let linked = "<a href=\"/note/123\">📝123</a>&#32;cool&#32;post&#32;<a href=\"/note/456\">&gt;&gt;456</a>";
         assert!(parse_note_text(src) == linked)
+    }
+
+    #[test]
+    fn test_get_reply_simple() {
+        let src = "📝123 cool post >>456";
+        assert!(get_reply(src) == Some(123));
+    }
+
+    #[test]
+    fn test_get_reply_none() {
+        let src = "No reply in this tweet";
+        assert!(get_reply(src) == None);
     }
 }

@@ -2,13 +2,7 @@
 
 {% block content %}
 {% if global.logged_in %}
-<div class="input-box">
-<form action="/create_note" method="POST">
-<textarea id="note_input" name="note_input" rows=3 placeholder="note"></textarea>
-<br>
-<button id="post" class="submit-button-style">create note</button>
-</form>
-</div>
+{% include "createnote.html" %}
 {% endif %}
 {% include "noteslist.html" %}
 {% endblock %}

@@ -81,6 +81,9 @@ pub struct NewUser<'a> {
     pub email: &'a str,
 }
 
+// impl NewUser {
+
+// }
 // impl validate
 fn validate_username() {
 }

@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% block content %}
 <div class="container">
-  <form action="/do_register?key={{key}}" method="POST">
+  <form action="/register?key={{key}}" method="POST">
   <div class="container">
     {% if keyed %}
     <label for="email"><b>Email</b></label>

@@ -6,14 +6,15 @@
   <b>user:</b> {{ user.username }} (#{{user.id}})
   <br>
   <b>bio:</b> {{user.bio}}
-  {% if global.user.id == user.id%}
+  {% if global.me.id == user.id%}
   <div>
       <form method="post" action="/logout" class="inline">
       <button type="submit" name="submit_param" value="submit_value"
-                                                class="link-button">logout</button</form>
+                                                class="link-button">logout</button></form>
   </div>
   {% endif %}
   </div>
+{% include "createnote.html" %}
 {% include "noteslist.html" %}
 </div>
 {% endblock %}

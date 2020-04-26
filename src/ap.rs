@@ -1,6 +1,6 @@
-use log::{debug};
-use serde_json::{Value};
-use activitystreams::activity::{Create, Accept, Follow, Reject, Announce, Delete, Activity};
+use activitystreams::activity::{Accept, Activity, Announce, Create, Delete, Follow, Reject};
+use log::debug;
+use serde_json::Value;
 
 // gonna be big
 fn process_unstructured_ap(message: &str) {
@@ -10,8 +10,7 @@ fn process_unstructured_ap(message: &str) {
     // TODO inbox forwarding https://www.w3.org/TR/activitypub/#inbox-forwarding
     if let Some(create) = from_str::<Create>(message).ok() {
         // create note database object
-    }
-    else if let Some(delete) = from_str::<Delete>(message).ok() {
+    } else if let Some(delete) = from_str::<Delete>(message).ok() {
         // delete note database object
     }
     debug!("Unrecognized or invalid activity");
@@ -75,25 +74,18 @@ mod tests {
               }
             }"#;
         process_unstructured_ap(mastodon_create_note_json_string);
-            }
-        }
-
-
-pub fn post_user_inbox(user_name: String, message: Value) {
+    }
 }
 
-pub fn post_user_outbox(user_name: String, message: Value) {
-}
+pub fn post_user_inbox(user_name: String, message: Value) {}
 
-pub fn get_user_outbox(user_name: String) {
-}
+pub fn post_user_outbox(user_name: String, message: Value) {}
+
+pub fn get_user_outbox(user_name: String) {}
 
 // requires authentication
-pub fn get_user_inbox(user_name: String) {
-}
+pub fn get_user_inbox(user_name: String) {}
 
-pub fn user_followers(user_name: String) {
-}
+pub fn user_followers(user_name: String) {}
 
-pub fn user_following(user_name: String) {
-}
+pub fn user_following(user_name: String) {}

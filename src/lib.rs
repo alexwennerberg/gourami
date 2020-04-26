@@ -8,7 +8,9 @@ extern crate diesel;
 use std::convert::Infallible;
 use zxcvbn::zxcvbn;
 
-use warp::{Reply, Filter, Rejection};
+use warp::{reject, reject::Reject, Reply, Filter, Rejection};
+use warp::{redirect::redirect};
+use warp::filters::path::FullPath;
 use warp::http;
 use warp::hyper::Body;
 
@@ -31,6 +33,7 @@ mod db;
 mod session;
 mod ap;
 
+
 // We use a global shared sqlite connection because it's simple and performance is not 
 // very important
 
@@ -48,34 +51,39 @@ lazy_static! {
 //     return *POOL.get().unwrap();
 
 
-// TODO split into separate templates. not sure how
-#[derive(Template)]
-#[template(path = "timeline.html")] 
-struct TimelineTemplate<'a>{
-    global: Global<'a>,
-    page: &'a str,
-    notes: Vec<Note>,
-} 
-
-struct Global<'a> {
+struct Global<'a> { // variables used on all pages w header
     title: &'a str,
-    user: User,
+    page: &'a str,
+    page_title: &'a str,
+    me: User,
     logged_in: bool,
 }
 
 impl<'a> Global<'a> {
-    fn from_session(session: Option<Session>) -> Self {
-        match session {
-            Some(s) => Global {
+    fn create(user: Option<User>, page: &'a str) -> Self {
+        match user { 
+        Some(u) => Self {
+            me: u,
+            page: page, // remove leading slash
+            page_title: &page[1..], // remove leading slash
             logged_in: true,
-            title: "gourami",
-            user: s.user.clone(),
+            ..Default::default()
         },
-            None => Global {
-            logged_in: false,
-            title: "gourami",
-            user: User::default(),
+        None => Self {
+            page: page,
+            ..Default::default()
         }
+        }
+    }
+}
+impl<'a> Default for Global<'a> {
+    fn default() -> Self {
+        Global {
+            title: "gourami", // todo set with config
+            me: User::default(),
+            page: "",
+            page_title: "",
+            logged_in: false,
         }
     }
 }
@@ -87,43 +95,45 @@ pub fn render_template<T: askama::Template>(t: &T) -> http::Response<hyper::body
             // TODO add headers etc
             .body(body.into()),
         Err(_) => http::Response::builder()
+            // pretty sure it will never get here
             .status(http::StatusCode::INTERNAL_SERVER_ERROR)
             .body(Body::empty()),
     }
     .unwrap()
 }
 
-fn delete_note(session: Option<Session>, note_id: i32) -> impl Reply {
+#[derive(Deserialize)]
+struct DeleteNoteRequest {
+    note_id: i32, // has to be String
+    redirect_url: String
+}
+
+fn delete_note(note_id: i32)-> Result<(), Box<dyn std::error::Error>> {
     use db::schema::notes::dsl::*;
-    diesel::delete(notes.filter(id.eq(note_id))).execute(&POOL.get().unwrap()).unwrap();
-    warp::redirect::redirect(warp::http::Uri::from_static("/"))
+    diesel::delete(notes.filter(id.eq(note_id))).execute(&POOL.get()?)?;
+    Ok(())
 }
 
 #[derive(Deserialize)]
 struct NewNoteRequest {
     note_input: String, // has to be String
+    redirect_url: String,
 }
 
-fn new_note(session: Option<Session>, req: NewNoteRequest) -> impl Reply {
+fn new_note(auth_user: User, note_input: &str) -> Result<(), Box<dyn std::error::Error>> {
     use db::schema::notes::dsl::*;
     // create activitypub activity object
     // TODO -- micropub?
-    if let Some(s) = session {
-        let new_note = NoteInput{
-            creator_id: s.user.id,
-            creator_username: s.user.username,
-            parent_id: None,
-            content: note::parse_note_text(&req.note_input), // how to avoid clone here?
-        };
-        insert_into(notes).values(new_note).execute(&POOL.get().unwrap()).unwrap();
-        return warp::redirect::redirect(warp::http::Uri::from_static("/"))
-    } else {
-        return warp::redirect::redirect(warp::http::Uri::from_static("/"))
-    }
-
+    let new_note = NoteInput{
+        user_id: auth_user.id,
+        parent_id: None,
+        content: note::parse_note_text(note_input), 
+    };
+    insert_into(notes).values(new_note).execute(&POOL.get()?)?;
     // generate activitypub object from post request
     // send to outbox
     // if request made from web form
+    Ok(())
 }
 
 // ActivityPub outbox 
@@ -139,25 +149,28 @@ fn send_to_outbox(activity: bool) { // activitystreams object
 #[derive(Template)]
 #[template(path = "register.html")] 
 struct RegisterTemplate<'a>{
-    page: &'a str,
     keyed: bool,
     key: &'a str,
     global: Global<'a>,
-} 
+}
 
-fn register_page(query_params: serde_json::Value) -> impl warp::Reply {
-    let global = Global::from_session(None); 
-    let keyed;
-    if let Some(k) = query_params.get("key") {
-        let key_str = k.as_str().unwrap();
+#[derive(Deserialize)]
+struct QueryParams {
+    key: Option<String>,
+}
+
+fn register_page(query_params: QueryParams) -> impl warp::Reply {
+    let mut keyed = false;
+    let mut key_str = "";
+    let global = Global::create(None, "register");
+    if let Some(k) = query_params.key {
+        key_str = k.as_str();
         keyed = RegistrationKey::is_valid(&POOL.get().unwrap(), &key_str);
-        render_template(&RegisterTemplate{keyed: keyed, key: key_str,  page: "register", global:global})
+        render_template(&RegisterTemplate{keyed: keyed, key: key_str, global: global})
     }
     else {
-        keyed = false;
-        render_template(&RegisterTemplate{keyed: keyed, key: "",  page: "register", global:global})
+        render_template(&RegisterTemplate{keyed: keyed, key: key_str, global: global})
     }
-    // TODO -- do... something if session is not none
 }
 
 
@@ -214,15 +227,13 @@ struct LoginForm {
 #[derive(Template)]
 #[template(path = "login.html")] 
 struct LoginTemplate<'a>{
-    page: &'a str,
-    login_failed: bool,
+    login_failed: bool, // required for redirects.
     global: Global<'a>,
 } 
 
 fn login_page() -> impl Reply {
     // dont let you access this page if logged in
-    let global = Global::from_session(None); 
-    render_template(&LoginTemplate{page: "login", login_failed: false, global:global})
+    render_template(&LoginTemplate{login_failed: false, global: Global{page: "login", ..Default::default()}})
 }
 
 fn do_login(form: LoginForm) -> impl Reply {
@@ -236,35 +247,85 @@ fn do_login(form: LoginForm) -> impl Reply {
         )
         .body(Body::empty()).unwrap()
     } else {
-        let global = Global::from_session(None); 
-        render_template(&LoginTemplate{page: "login", login_failed: true, global:global})
-        // TODO -- better error handling
+        render_template(&LoginTemplate{login_failed: true, global:Global{page: "login", ..Default::default()}})
     }
 }
 
-fn do_logout(session: Option<Session>) -> impl Reply {
+fn do_logout(cookie: String) -> impl Reply {
     use db::schema::sessions::dsl::*;
-    if let Some(s) = session {
-        diesel::delete(sessions.filter(id.eq(s.id))).execute(&POOL.get().unwrap()).unwrap();
-    }
-    warp::redirect::redirect(warp::http::Uri::from_static("/"))
+    diesel::delete(sessions.filter(cookie.eq(cookie))).execute(&POOL.get().unwrap()).unwrap();
+    redirect(warp::http::Uri::from_static("/"))
 }
 
-fn render_timeline(session: Option<Session>) -> impl Reply {
-    // no session -- anonymous
-    let global = Global::from_session(session); 
+// TODO split into separate templates. not sure how
+#[derive(Template)]
+#[template(path = "timeline.html")] 
+struct TimelineTemplate<'a>{
+    global: Global<'a>,
+    notes: Vec<UserNote>,
+} 
+
+#[derive(Deserialize)]
+struct GetPostsParams {
+    #[serde(default = "default_page")]
+    page_num: i64,
+    user_id: Option<i32>
+}
+fn default_page() -> i64 {
+    1
+}
+
+impl Default for GetPostsParams {
+    fn default() -> Self {
+        GetPostsParams {
+            page_num: 1,
+            user_id: None
+        }
+    }
+}
+
+
+pub struct UserNote {
+    note: Note,
+    username: String,
+}
+
+fn get_single_note(note_id: i32) -> Option<UserNote> {
     use db::schema::notes::dsl::*;
+    use db::schema::users::dsl::*;
+    use db::schema;
+     let note = notes.inner_join(users)
+    .filter(schema::notes::id.eq(note_id))
+    .first::<(Note, User)>(&POOL.get().unwrap()).unwrap();
+    Some(UserNote{note: note.0, username: note.1.username})
+}
+
+/// We have to do a join here
+fn get_notes(params: GetPostsParams) -> Result<Vec<UserNote>, diesel::result::Error> {
+    use db::schema::notes::dsl::*;
+    use db::schema::users::dsl::*;
+    use db::schema as s;
+    const PAGE_SIZE: i64 = 250;
+    let results = notes.inner_join(users)
+        .order(s::notes::id.desc())
+        .limit(PAGE_SIZE)
+        .offset((params.page_num - 1) * PAGE_SIZE)
+        .load::<(Note, User)>(&POOL.get().unwrap()).unwrap(); // TODO get rid of unwrap
+    Ok(results.into_iter().map(|a| UserNote{note: a.0, username: a.1.username}).collect())
+}
+
+fn render_timeline(auth_user: Option<User>, params:GetPostsParams, url_path: FullPath) -> impl Reply {
+    // no session -- anonymous
     // pulls a bunch of data i dont really need
-    let results = notes
-        .order(id.desc())
-        .limit(250)
-        .load::<Note>(&POOL.get().unwrap())
-        .expect("Error loading posts");
-    render_template(&TimelineTemplate{
-        page: "timeline",
-        global: global,
-        notes: results,
-    })
+    let header = Global::create(auth_user, url_path.as_str());
+    let notes = get_notes(params);
+    match notes {
+        Ok(n) => render_template(&TimelineTemplate{
+            global: header,
+            notes: n,
+        }),
+        _ => render_template(&ErrorTemplate{global: header, error_message: "Could not fetch notes", ..Default::default()})
+    }
 
 }
 
@@ -272,15 +333,22 @@ fn render_timeline(session: Option<Session>) -> impl Reply {
 #[template(path = "server_info.html")]
 struct ServerInfoTemplate<'a> {
     global: Global<'a>,
-    page: &'a str,
 }
 
 #[derive(Template)]
 #[template(path = "error.html")] 
 struct ErrorTemplate<'a> {
     global: Global<'a>,
-    page: &'a str,
     error_message: &'a str
+}
+
+impl<'a>  Default for ErrorTemplate<'a> {
+    fn default() -> Self {
+        Self {
+            global: Global::default(),
+            error_message: "An error occured. Please report to site admin."
+        }
+    }
 }
 
 #[derive(Template)]
@@ -288,8 +356,8 @@ struct ErrorTemplate<'a> {
 struct UserTemplate<'a>{
     global: Global<'a>,
     page: &'a str,
-    notes: Vec<Note>,
-    user: User
+    notes: Vec<UserNote>,
+    user: User,
 } 
 
 #[derive(Template)]
@@ -297,34 +365,31 @@ struct UserTemplate<'a>{
 struct NoteTemplate<'a> {
     global: Global<'a>,
     page: &'a str,
-    note: Note,
+    note: &'a UserNote,
     // thread
 }
 
-fn server_info_page(session: Option<Session>) -> impl Reply {
-    let global = Global::from_session(session); 
-    render_template(&ServerInfoTemplate{global: global, page: "server"})
+fn server_info_page(auth_user: Option<User>) -> impl Reply {
+    render_template(&ServerInfoTemplate{global: Global::create(auth_user, "/server")})
 }
 
-fn note_page(session: Option<Session>, note_id: i32) -> impl Reply {
-    let global = Global::from_session(session); 
+fn note_page(auth_user: Option<User>, note_id: i32, path: FullPath) -> impl Reply {
     use db::schema::notes::dsl::*;
+    use db::schema::users::dsl::*;
+    use db::schema;
     let conn = &POOL.get().unwrap();
-    let note: Option<Note> = notes
-        .filter(id.eq(note_id))
-        .first::<Note>(conn)
-        .ok();
-    if let Some(n) = note {
-        render_template(&NoteTemplate{global: global, note: n.clone(), page: &n.id.to_string()})
+    let note = get_single_note(note_id);
+   if let Some(n) = note {
+        render_template(&NoteTemplate{global: Global::create(auth_user, path.as_str()), note: &n, page: &note_id.to_string()})
     }
     else {
-        render_template(&ErrorTemplate{global: global, page: "error", error_message: "Note not found"})
+        render_template(&ErrorTemplate{global: Global::create(auth_user, path.as_str()), error_message: "Note not found"})
     }
     // TODO -- fetch replies
 }
 
-fn user_page(session: Option<Session>, user_name: String) -> impl Reply {
-    let global = Global::from_session(session); 
+fn user_page(auth_user: Option<User>, user_name: String, params: GetPostsParams, path: FullPath) -> impl Reply {
+    let header = Global::create(auth_user, path.as_str());  // maybe if i'm clever i can abstract this away
     use db::schema::users::dsl::*;
     let conn = &POOL.get().unwrap();
     let user: Option<User> = users
@@ -332,26 +397,36 @@ fn user_page(session: Option<Session>, user_name: String) -> impl Reply {
         .first::<User>(conn)
         .ok();
     if let Some(u) = user {
-        use db::schema::notes::dsl::*;
-        let results = notes
-            .filter(creator_id.eq(u.id))
-            .order(id.desc())
-            .load::<Note>(conn)
-            .expect("Error loading posts");
+        let notes = get_notes(params).unwrap();
         render_template(&UserTemplate{
-            global: global,
+            global: header,
             page: &u.username,
             user: u.clone(), // TODO stop cloning
-            notes: results
+            notes: notes
         })
     }
     else {
-        render_template(&ErrorTemplate{global: global, page: "error", error_message: "User not found"})
+        render_template(&ErrorTemplate{global: header, error_message: "User not found", ..Default::default()})
     }
 }
 
-async fn error_page(err: Rejection) -> Result<impl Reply, Infallible>{
-    Ok(render_template(&ErrorTemplate{global: Global::from_session(None), page: "error", error_message: "You do not have access to this page."}))
+
+#[derive(Template)]
+#[template(path = "notifications.html")] 
+struct NotificationTemplate<'a> {
+    // user: Global<'a>,
+    page: &'a str,
+    // notifications: Vec<Notifications>,
+    // thread
+}
+
+// fn notification_page(auth_user: &User) -> impl Reply {
+//     let global = Global::from_session(session):
+//     render_template(&NotificationTemplate{global: global, page: "notifications"}
+// }
+
+async fn handle_rejection(err: Rejection) -> Result<impl Reply, Infallible> {
+    Ok(render_template(&ErrorTemplate{global: Global::create(None, "error"), error_message: "You do not have access to this page, it does not exist, or something went wrong."}))
 }
 
 
@@ -361,6 +436,11 @@ struct Page {
     page_num: i32
 }
 
+// TODO -- move this into separate module
+#[derive(Debug)]
+struct LoggedOut;
+impl Reject for LoggedOut {}
+
 pub async fn run_server() {
     env_logger::init();
     // cors filters etc
@@ -369,22 +449,28 @@ pub async fn run_server() {
     let public = false; // std::env::var("PUBLIC").unwrap_or("false");
     let session_filter = move || session::create_session_filter(public).clone();
 
-    use warp::{path, body::json, body::form, filters::query::query};
+    use warp::{filters::cookie, path, body::json, body::form, filters::query::query};
 
+    // we have to pass the full paths for redirect to work without javascript
     let home = warp::path::end()
         .and(session_filter())
+        .and(query())
+        .and(path::full())
         .map(render_timeline);
 
     let user_page = session_filter()
         .and(path!("user" / String))
+        .and(form())
+        .and(path::full())
         .map(user_page);
 
     let note_page = session_filter()
         .and(path!("note" / i32))
+        .and(path::full())
         .map(note_page);
 
     let server_info_page = session_filter()
-        .and(path("server_info"))
+        .and(path("server"))
         .map(server_info_page);
 
     // auth functions
@@ -392,7 +478,7 @@ pub async fn run_server() {
         .and(query())
         .map(register_page);
 
-    let do_register = path("do_register")
+    let do_register = path("register")
         .and(form())
         .and(query())
         .map(do_register);
@@ -400,24 +486,36 @@ pub async fn run_server() {
     let login_page = path("login")
         .map(|| login_page());
 
-    let do_login = path("do_login")
+    // TODO redirect these login pages
+    let do_login = path("login")
         .and(form())
         .map(do_login);
 
     let do_logout = path("logout")
-        .and(session_filter())
+        .and(cookie::cookie("EXAUTH"))
         .map(do_logout);
 
     // CRUD actions
     let create_note = path("create_note")
         .and(session_filter())
         .and(form())
-        .map(new_note);
+        // Verbose -- see if you can refactor
+        .map(|u: Option<User>, f: NewNoteRequest| match u {
+            Some(u) => {
+                new_note(u, &f.note_input).unwrap(); // TODO fix unwrap
+                let red_url: http::Uri = f.redirect_url.parse().unwrap();
+                redirect(red_url)},
+            None => redirect(warp::http::Uri::from_static("error"))});
 
-    let delete_note = session_filter()
-        .and(path!(i32 / "delete"))
-        .map(delete_note);
-
+    let delete_note = path("delete_note")
+        .and(session_filter())
+        .and(form())
+        .map(|u: Option<User>, f: DeleteNoteRequest | match u {
+            Some(u) => {
+                delete_note(f.note_id).unwrap(); // TODO fix unwrap
+                let red_url: http::Uri = f.redirect_url.parse().unwrap();
+                redirect(red_url)},
+            None => redirect(warp::http::Uri::from_static("error"))});
 
 
     let static_files = warp::path("static")
@@ -454,7 +552,7 @@ pub async fn run_server() {
         // used for api based authentication
     // let api_filter = session::create_session_filter(&POOL.get());
     let html_renders = home.or(login_page).or(register_page).or(user_page).or(note_page).or(server_info_page);
-    let forms = login_page.or(do_register).or(do_login).or(create_note).or(delete_note).or(do_logout);
+    let forms = do_register.or(do_login).or(do_logout).or(create_note).or(delete_note);
     // let api
     // catch all for any other paths
 
@@ -465,7 +563,7 @@ pub async fn run_server() {
             .and(forms))
         .or(static_files)
         .with(warp::log("server"))
-        .recover(error_page);
+        .recover(handle_rejection);
 
     match std::env::var("GOURAMI_ENV").unwrap().as_str() {
         "PROD" => warp::serve(routes)

@@ -1,19 +1,21 @@
 
 <div class="note">
   <div class="note-meta">
-  <a href="/note/{{note.id}}">📝{{note.id}}</a> {{note.created_time}} <a class="bold" href="/user/{{note.creator_username}}">@{{note.creator_username}}</a>
+  <a href="/note/{{note.note.id}}">📝{{note.note.id}}</a> {{note.note.created_time}} <a
+    class="bold" href="/user/{{note.username}}">@{{note.username}}</a>
 {% if global.logged_in  %}
-<a href="#" onclick="reply({{note.id}}, '{{note.creator_username}}')">↪</a>
+<a href="#" onclick="reply({{note.note.id}}, '{{note.username}}')">↪</a>
   {% endif %}
-  {% if note.creator_id == global.user.id %} 
-  <form method="post" action="/{{note.id}}/delete" class="inline">
-      <input type="hidden" name="extra_submit_param" value="extra_submit_value">
+  {% if note.note.user_id == global.me.id %} 
+  <form method="post" action="/delete_note" class="inline">
+    <input type="hidden" name="note_id" value="{{note.note.id}}">
+    <input type="hidden" name="redirect_url" value="{{global.page}}">
         <button type="submit" name="submit_param" value="submit_value"
           class="link-button">✕</button>
    </form>
    {%endif%}
    </div>
   <div class="note-content">
-  {{note.content|safe}} 
+  {{note.note.content|safe}} 
   </div>
   </div>

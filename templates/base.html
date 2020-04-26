@@ -1,9 +1,9 @@
 <!DOCTYPE html>
 <html lang="en">
   <head>
-    <title>🐟{{global.title}}</title>
     <link rel="stylesheet" type="text/css" href="../static/css/style.css">
     <meta charset="utf-8"/>
+    <title>🐟{{global.title}}</title>
     <meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1"/>
    <script>
     function reply(note_id, user_name)
@@ -15,15 +15,16 @@
   <body class="monospace">
     <div class="main">
     <div id="header">
-      <div class="padded navbar">
-        <div class="title">🐟{{global.title}}/{{page}}</div> 
-        <div class="navlinks">
-        <a href="/">timeline</a> <a href="/server_info">server</a>{% if global.logged_in %} <a href="/user/{{global.user.username}}">@{{global.user.username}}</a>{% else %} <a href="login">login</a>{% endif %}
-        </div>
-      </div>
+    <div class="padded navbar">
+    <div class="title">🐟{{global.title}}/{{global.page_title}}</div> 
+     </div>
+    <div class="navlinks">
+    <a href="/">timeline</a> <a href="/server_info">server</a>{% if global.logged_in %} <a
+                                href="/user/{{global.me.username}}">@{{global.me.username}}</a>{% else %} <a href="login">login</a>{% endif %}
+    </div>
     </div>
     <div class="padded main-content">
-      {% block content %}{% endblock %}
+      {% block content %} {% endblock %}
    </div>
     <div class="padded footer">
       Built with <a href="https://git.sr.ht/~alexwennerberg/gourami-social">gourami</a>
