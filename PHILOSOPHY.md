@@ -10,17 +10,13 @@ Avoiding Javascript also helps with accessibility and usability. Meeting certain
 
 In Jenny Odell's *How to Do Nothing*, she discusses the phenomenon of "context collapse" in social media. Many of these ideas are excerpted in her essay in [The Paris Review](https://www.theparisreview.org/blog/2019/04/19/why-does-this-feel-so-bad/)
 
-```
-Spatial and temporal context both have to do with the neighboring entities around something that help define it. Context also helps establish the order of events. Obviously, the bits of information we’re assailed with on Twitter and Facebook feeds are missing both of these kinds of context. Scrolling through the feed, I can’t help but wonder: What am I supposed to think of all this? How am I supposed to think of all this? I imagine different parts of my brain lighting up in a pattern that doesn’t make sense, that forecloses any possible understanding. Many things in there seem important, but the sum total is nonsense, and it produces not understanding but a dull and stupefying dread.
-```
+> Spatial and temporal context both have to do with the neighboring entities around something that help define it. Context also helps establish the order of events. Obviously, the bits of information we’re assailed with on Twitter and Facebook feeds are missing both of these kinds of context. Scrolling through the feed, I can’t help but wonder: What am I supposed to think of all this? How am I supposed to think of all this? I imagine different parts of my brain lighting up in a pattern that doesn’t make sense, that forecloses any possible understanding. Many things in there seem important, but the sum total is nonsense, and it produces not understanding but a dull and stupefying dread.
 
 In my view, a way around this is to develop a platform that consciously builds and protext context. One could imagine a Gourami instance that is, for example, tied to a physical location by running on a wifi network, at a coffee shop, or on a [Wireless Mesh Network](https://en.wikipedia.org/wiki/Wireless_mesh_network). By keeping Gourami extremely small, lightweight, and easy to administer, this becomes a possibility that wouldn't be feasible with even other open source social networks.
 
 In *The Communist Horizon*, Jodi Dean more explicitly links the dynamics Jenny Odell discusses with neoliberal capitalism. In what she terms "communicative capitalism", our very time and social relationships become a commodity to be exploited on for-profit social networks. 
 
-```
-Networked communications are the form of capitalism's subsumption of the social substance to its terms and dynamics ... We don't usually pay money directly to Gmail, YouTube, Facebook, and Twitter. These don't cause money, they cost time. It takes time to post and write and time to read and respond. We pay with attention and the cost is focus.
-```
+> Networked communications are the form of capitalism's subsumption of the social substance to its terms and dynamics ... We don't usually pay money directly to Gmail, YouTube, Facebook, and Twitter. These don't cause money, they cost time. It takes time to post and write and time to read and respond. We pay with attention and the cost is focus.
 
 In my view, ideally social networks would be public media institutions run for public good, much like public broadcasting or open access television. Unfortunately, this isn't even remotely an immediate possbility in the United States.
 
