@@ -20,7 +20,7 @@
      </div>
     <div class="navlinks">
     <a href="/">timeline</a> <a href="/server">server</a>{% if global.logged_in %} 
-    <a href="notifications">n({{global.unread_notifications}})</a> <a href="/user/{{global.me.username}}">@{{global.me.username}}</a>{% else %} <a href="login">login</a>{% endif %}
+    <a href="/notifications">n({{global.unread_notifications}})</a> <a href="/user/{{global.me.username}}">@{{global.me.username}}</a>{% else %} <a href="login">login</a>{% endif %}
     </div>
     </div>
     <div class="padded main-content">

@@ -1,6 +1,6 @@
-use gourami_social::run_server;
+use gourami_social::routes::run_server;
 
 #[tokio::main]
 async fn main() {
-    gourami_social::run_server().await;
+    run_server().await;
 }

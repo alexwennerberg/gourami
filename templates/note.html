@@ -2,5 +2,7 @@
 
 {% block content %}
 {% include "createnote.html" %}
-{% include "single_note.html" %}
+{% for note in note_thread %}
+  {% include "single_note.html" %}
+{% endfor %}
 {% endblock %}

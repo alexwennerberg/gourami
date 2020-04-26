@@ -1,4 +1,3 @@
-// auth functions]
 #[macro_use]
 extern crate diesel;
 #[macro_use] extern crate log;
@@ -16,7 +15,6 @@ use warp::hyper::Body;
 
 use hyper;
 use askama::Template;
-use env_logger;
 use db::note::{NoteInput, Note};
 use db::note;
 use db::user::{RegistrationKey, User, NewUser};
@@ -33,6 +31,7 @@ type SqlitePool = Pool<ConnectionManager<SqliteConnection>>;
 mod db;
 mod session;
 mod ap;
+pub mod routes;
 
 
 // We use a global shared sqlite connection because it's simple and performance is not 
@@ -341,14 +340,14 @@ pub struct UserNote {
     username: String,
 }
 
-fn get_single_note(note_id: i32) -> Option<UserNote> {
-    use db::schema::notes::dsl::*;
-    use db::schema::users::dsl::*;
-    use db::schema;
-     let note = notes.inner_join(users)
-    .filter(schema::notes::id.eq(note_id))
-    .first::<(Note, User)>(&POOL.get().unwrap()).unwrap();
-    Some(UserNote{note: note.0, username: note.1.username})
+// thread. hm
+fn get_single_note(note_id: i32) -> Option<Vec<UserNote>> {
+    use db::schema::notes::dsl as n;
+    use db::schema::users::dsl as u;
+     let results = n::notes.inner_join(u::users)
+    .filter(n::id.eq(note_id).or(n::in_reply_to.eq(note_id)))
+    .load::<(Note, User)>(&POOL.get().unwrap()).unwrap();
+    Some(results.into_iter().map(|a| UserNote{note: a.0, username: a.1.username}).collect())
 }
 
 /// We have to do a join here
@@ -450,7 +449,7 @@ struct UserTemplate<'a>{
 struct NoteTemplate<'a> {
     global: Global<'a>,
     page: &'a str,
-    note: &'a UserNote,
+    note_thread: Vec<UserNote>,
     // thread
 }
 
@@ -459,18 +458,13 @@ fn server_info_page(auth_user: Option<User>) -> impl Reply {
 }
 
 fn note_page(auth_user: Option<User>, note_id: i32, path: FullPath) -> impl Reply {
-    use db::schema::notes::dsl::*;
-    use db::schema::users::dsl::*;
-    use db::schema;
-    let conn = &POOL.get().unwrap();
-    let note = get_single_note(note_id);
-   if let Some(n) = note {
-        render_template(&NoteTemplate{global: Global::create(auth_user, path.as_str()), note: &n, page: &note_id.to_string()})
+    let note_thread = get_single_note(note_id);
+   if let Some(n) = note_thread {
+        render_template(&NoteTemplate{global: Global::create(auth_user, path.as_str()), note_thread: n, page: &note_id.to_string()})
     }
     else {
         render_template(&ErrorTemplate{global: Global::create(auth_user, path.as_str()), error_message: "Note not found"})
     }
-    // TODO -- fetch replies
 }
 
 fn user_page(auth_user: Option<User>, user_name: String, params: GetPostsParams, path: FullPath) -> impl Reply {
@@ -511,142 +505,3 @@ struct Page {
 #[derive(Debug)]
 struct LoggedOut;
 impl Reject for LoggedOut {}
-
-pub async fn run_server() {
-    env_logger::init();
-    // cors filters etc
-    
-    // NOT TESTED YET
-    let public = false; // std::env::var("PUBLIC").unwrap_or("false");
-    let session_filter = move || session::create_session_filter(public).clone();
-
-    use warp::{filters::cookie, path, body::json, body::form, filters::query::query};
-
-    // we have to pass the full paths for redirect to work without javascript
-    let home = warp::path::end()
-        .and(session_filter())
-        .and(query())
-        .and(path::full())
-        .map(render_timeline);
-
-    let user_page = session_filter()
-        .and(path!("user" / String))
-        .and(form())
-        .and(path::full())
-        .map(user_page);
-
-    let note_page = session_filter()
-        .and(path!("note" / i32))
-        .and(path::full())
-        .map(note_page);
-
-    let notification_page = session_filter()
-        .and(path("notifications"))
-        .map(render_notifications);
-
-    let server_info_page = session_filter()
-        .and(path("server"))
-        .map(server_info_page);
-
-    // auth functions
-    let register_page = path("register")
-        .and(query())
-        .map(register_page);
-
-    let do_register = path("register")
-        .and(form())
-        .and(query())
-        .map(do_register);
-
-    let login_page = path("login")
-        .map(|| login_page());
-
-    // TODO redirect these login pages
-    let do_login = path("login")
-        .and(form())
-        .map(do_login);
-
-    let do_logout = path("logout")
-        .and(cookie::cookie("EXAUTH"))
-        .map(do_logout);
-
-    // CRUD actions
-    let create_note = path("create_note")
-        .and(session_filter())
-        .and(form())
-        // Verbose -- see if you can refactor
-        .map(|u: Option<User>, f: NewNoteRequest| match u {
-            Some(u) => {
-                new_note(u, &f.note_input).unwrap(); // TODO fix unwrap
-                let red_url: http::Uri = f.redirect_url.parse().unwrap();
-                redirect(red_url)},
-            None => redirect(warp::http::Uri::from_static("error"))});
-
-    let delete_note = path("delete_note")
-        .and(session_filter())
-        .and(form())
-        .map(|u: Option<User>, f: DeleteNoteRequest | match u {
-            Some(u) => {
-                delete_note(f.note_id).unwrap(); // TODO fix unwrap
-                let red_url: http::Uri = f.redirect_url.parse().unwrap();
-                redirect(red_url)},
-            None => redirect(warp::http::Uri::from_static("error"))});
-
-
-    let static_files = warp::path("static")
-        .and(warp::fs::dir("./static"));
-
-    // activityPub stuff
-    //
-    // POST
-    let post_user_inbox = path!("user" / String / "inbox.json" )
-        .and(json())
-        .map(ap::post_user_inbox);
-
-    let post_user_outbox = path!("user" / String / "outbox.json" )
-        .and(json())
-        .map(ap::post_user_outbox);
-
-    let get_user_outbox = path!("user" / String / "outbox.json" )
-        .map(ap::get_user_outbox);
-
-    // let get_user_inbox = path!("user" / String / "outbox.json" )
-    //     .and(json())
-    //     .map(ap::post_user_outbox);
-
-    let user_followers = path!("user" / String / "followers.json" )
-        .map(ap::user_followers);
-
-    let user_following = path!("user" / String / "following.json" )
-        .map(ap::user_following);
-
-    // https://github.com/seanmonstar/warp/issues/42 -- how to set up diesel
-    // TODO set content length limit 
-    // TODO redirect via redirect in request
-    // TODO secure against xss
-        // used for api based authentication
-    // let api_filter = session::create_session_filter(&POOL.get());
-    let html_renders = home.or(login_page).or(register_page).or(user_page).or(note_page).or(server_info_page).or(notification_page);
-    let forms = do_register.or(do_login).or(do_logout).or(create_note).or(delete_note);
-    // let api
-    // catch all for any other paths
-
-    let routes = warp::get().and(html_renders)
-        .or(
-            warp::post()
-            .and(warp::body::content_length_limit(1024 * 32))
-            .and(forms))
-        .or(static_files)
-        .with(warp::log("server"))
-        .recover(handle_rejection);
-
-    match std::env::var("GOURAMI_ENV").unwrap().as_str() {
-        "PROD" => warp::serve(routes)
-            .tls()
-            .cert_path(&std::env::var("CERT_PATH").unwrap())
-            .key_path(&std::env::var("KEY_PATH").unwrap())
-            .run(([0, 0, 0, 0], 443))
-            .await ,
-        _ => warp::serve(routes).run(([127,0,0,1], 3030)).await
-    }
-}
