@@ -6,8 +6,7 @@ CREATE TABLE users (
   email VARCHAR(255),
   bio VARCHAR(1023) default "New here!",
   created_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP ,
-  password VARCHAR(255),
-  admin BOOLEAN default false
+  password VARCHAR(255)
 );
 
 CREATE UNIQUE INDEX users_username_idx ON users (username);
@@ -33,23 +32,10 @@ CREATE TABLE sessions (
 
 CREATE TABLE notes (
     id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
-    user_id INTEGER REFERENCES users(id),
-    in_reply_to INTEGER REFERENCES notes(id),
+    creator_id INTEGER REFERENCES users(id),
+    creator_username VARCHAR(255), -- TODO: better solution here. maybe a view
+    parent_id INTEGER,
     content TEXT,
     created_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP 
 );
 
-
-CREATE TABLE notifications (
-  id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
-  notification_html TEXT,
-  server_message BOOLEAN,
-  created_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP 
-);
-
-CREATE TABLE notification_viewers (
-  notification_id INTEGER REFERENCES notifications(id),
-  user_id INTEGER REFERENCES users(id),
-  viewed BOOLEAN,
-  PRIMARY KEY (notification_id, user_id)
-);
