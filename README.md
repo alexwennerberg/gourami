@@ -4,7 +4,7 @@ An intentionally small, ultra-lightweight social media network (ActivityPub inte
 
 ## Philosophy
 
-Link to doc, summary here
+Read [this document](/PHILOSOPHY.md)
 
 * Invite-only
 * Closed by default
