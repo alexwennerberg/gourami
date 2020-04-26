@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+{% block content %}
+<form method="POST" action="/user/{{user.username}}/edit">
+<b>user:</b> {{ user.username }} (#{{user.id}})
+<br>
+<label for="bio"><b>bio:<b></label>
+<input type="text" id="bio" name="bio">
+<input type="hidden" name="redirect_url" value="/user/{{user.username}}">
+<br>
+<button id="post" class="submit-button-style">submit</button>
+</form>
+{% endblock %}

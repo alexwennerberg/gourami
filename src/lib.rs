@@ -490,6 +490,46 @@ fn user_page(auth_user: Option<User>, user_name: String, params: GetPostsParams,
 }
 
 
+#[derive(Template)]
+#[template(path = "edit_user.html")] 
+struct UserEditTemplate<'a> {
+    global: Global<'a>,
+    user: User,
+}
+
+fn render_user_edit_page(user: Option<User>, user_name: String) -> impl Reply {
+    let u = user.clone().unwrap();
+    let global = Global::create(user, "/edit");
+    if u.username == user_name || u.admin {
+        render_template(&UserEditTemplate{global: global, user: u})
+    }
+    else {
+        render_template(&ErrorTemplate{global: global, error_message: "You don't have permission to edit this page", ..Default::default()})
+    }
+}
+
+
+#[derive(Deserialize)]
+struct EditForm {
+    redirect_url: String,
+    bio: Option<String>,
+}
+
+fn edit_user(user: Option<User>, user_name: String, f: EditForm) -> impl Reply {
+    let u = user.clone().unwrap();
+    let conn = &POOL.get().unwrap();
+    if u.username == user_name || u.admin {
+        use db::schema::users::dsl::*;
+        diesel::update(
+            users
+            .find(u.id))
+            .set(bio.eq(&f.bio.unwrap_or(String::new())))
+            .execute(conn).unwrap();
+    }
+    let red: http::Uri = f.redirect_url.parse().unwrap();
+    redirect(red)
+}
+
 async fn handle_rejection(err: Rejection) -> Result<impl Reply, Infallible> {
     Ok(render_template(&ErrorTemplate{global: Global::create(None, "error"), error_message: "You do not have access to this page, it does not exist, or something went wrong."}))
 }

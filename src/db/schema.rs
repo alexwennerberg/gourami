@@ -22,6 +22,7 @@ table! {
         bio -> Text,
         created_time -> Timestamp,
         password -> Varchar,
+        admin -> Bool,
     }
 }
 

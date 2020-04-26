@@ -6,7 +6,8 @@ CREATE TABLE users (
   email VARCHAR(255),
   bio VARCHAR(1023) default "New here!",
   created_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP ,
-  password VARCHAR(255)
+  password VARCHAR(255),
+  admin BOOLEAN default false
 );
 
 CREATE UNIQUE INDEX users_username_idx ON users (username);

@@ -40,6 +40,7 @@ pub struct User {
     pub bio: String,
     pub created_time: String,
     pub password: String, // is this OK? hashed
+    pub admin: bool, 
 }
 
 // TODO -- default "anonymous" user

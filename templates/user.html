@@ -7,6 +7,8 @@
   <br>
   <b>bio:</b> {{user.bio}}
   {% if global.me.id == user.id%}
+  <br>
+  <a href="/user/{{user.username}}/edit">edit</a>
   <div>
       <form method="post" action="/logout" class="inline">
       <button type="submit" name="submit_param" value="submit_value"

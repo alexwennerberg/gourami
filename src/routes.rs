@@ -8,7 +8,8 @@ pub async fn run_server() {
     // NOT TESTED YET
     let public = false; // std::env::var("PUBLIC").unwrap_or("false");
     let session_filter = move || session::create_session_filter(public).clone();
-
+    let private_session_filter = move || session::create_session_filter(false).clone();
+    // TODO - -create a filter that gives only certain users access to pages
 
     // we have to pass the full paths for redirect to work without javascript
     let home = warp::path::end()
@@ -22,6 +23,15 @@ pub async fn run_server() {
         .and(form())
         .and(path::full())
         .map(user_page);
+
+    let user_edit_page  = private_session_filter()
+        .and(path!("user" / String / "edit" ))
+        .map(render_user_edit_page);
+
+    let edit_user = private_session_filter()
+        .and(path!("user" / String / "edit"))
+        .and(form())
+        .map(edit_user);
 
     let note_page = session_filter()
         .and(path!("note" / i32))
@@ -114,8 +124,8 @@ pub async fn run_server() {
     // TODO secure against xss
         // used for api based authentication
     // let api_filter = session::create_session_filter(&POOL.get());
-    let html_renders = home.or(login_page).or(register_page).or(user_page).or(note_page).or(server_info_page).or(notification_page);
-    let forms = do_register.or(do_login).or(do_logout).or(create_note).or(delete_note);
+    let html_renders = home.or(login_page).or(register_page).or(user_page).or(note_page).or(server_info_page).or(notification_page).or(user_edit_page);
+    let forms = do_register.or(do_login).or(do_logout).or(create_note).or(delete_note).or(edit_user);
     // let api
     // catch all for any other paths
 
