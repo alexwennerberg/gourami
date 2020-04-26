@@ -4,7 +4,7 @@ An intentionally small, ultra-lightweight social media network (ActivityPub inte
 
 ## Philosophy
 
-Read [this document](/PHILOSOPHY.md)
+Read [this document](https://git.sr.ht/~alexwennerberg/gourami-social/tree/master/PHILOSOPHY.md)
 
 * Invite-only
 * Closed by default
