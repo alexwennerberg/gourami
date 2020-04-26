@@ -352,15 +352,17 @@ fn get_single_note(note_id: i32) -> Option<Vec<UserNote>> {
 
 /// We have to do a join here
 fn get_notes(params: GetPostsParams) -> Result<Vec<UserNote>, diesel::result::Error> {
-    use db::schema::notes::dsl::*;
-    use db::schema::users::dsl::*;
-    use db::schema as s;
+    use db::schema::notes::dsl as n;
+    use db::schema::users::dsl as u;
     const PAGE_SIZE: i64 = 250;
-    let results = notes.inner_join(users)
-        .order(s::notes::id.desc())
+    let mut query = n::notes.inner_join(u::users)
+        .order(n::id.desc())
         .limit(PAGE_SIZE)
-        .offset((params.page_num - 1) * PAGE_SIZE)
-        .load::<(Note, User)>(&POOL.get().unwrap()).unwrap(); // TODO get rid of unwrap
+        .offset((params.page_num - 1) * PAGE_SIZE).into_boxed();
+    if let Some(u_id) = params.user_id {
+        query = query.filter(u::id.eq(u_id));
+    }
+    let results = query.load::<(Note, User)>(&POOL.get().unwrap()).unwrap(); // TODO get rid of unwrap
     Ok(results.into_iter().map(|a| UserNote{note: a.0, username: a.1.username}).collect())
 }
 
@@ -467,7 +469,7 @@ fn note_page(auth_user: Option<User>, note_id: i32, path: FullPath) -> impl Repl
     }
 }
 
-fn user_page(auth_user: Option<User>, user_name: String, params: GetPostsParams, path: FullPath) -> impl Reply {
+fn user_page(auth_user: Option<User>, user_name: String, mut params: GetPostsParams, path: FullPath) -> impl Reply {
     let header = Global::create(auth_user, path.as_str());  // maybe if i'm clever i can abstract this away
     use db::schema::users::dsl::*;
     let conn = &POOL.get().unwrap();
@@ -476,6 +478,7 @@ fn user_page(auth_user: Option<User>, user_name: String, params: GetPostsParams,
         .first::<User>(conn)
         .ok();
     if let Some(u) = user {
+        params.user_id = Some(u.id);
         let notes = get_notes(params).unwrap();
         render_template(&UserTemplate{
             global: header,

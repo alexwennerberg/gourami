@@ -76,9 +76,9 @@ pub async fn run_server() {
         .map(|u: Option<User>, f: NewNoteRequest| match u {
             Some(u) => {
                 new_note(u, &f.note_input).unwrap(); // TODO fix unwrap
-                let red_url: http::Uri = f.redirect_url.parse().unwrap();
-                redirect(red_url)},
-            None => redirect(warp::http::Uri::from_static("error"))});
+                // let red_url: http::Uri = f.redirect_url.parse().unwrap();
+                redirect(http::Uri::from_static("/"))},
+            None => redirect(http::Uri::from_static("error"))});
 
     let delete_note = path("delete_note")
         .and(session_filter())
@@ -88,7 +88,7 @@ pub async fn run_server() {
                 delete_note(f.note_id).unwrap(); // TODO fix unwrap
                 let red_url: http::Uri = f.redirect_url.parse().unwrap();
                 redirect(red_url)},
-            None => redirect(warp::http::Uri::from_static("error"))});
+            None => redirect(http::Uri::from_static("error"))});
 
 
     let static_files = warp::path("static")
