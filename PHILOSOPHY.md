@@ -1,0 +1,33 @@
+# Gourami (DRAFT)
+
+Gourami is an intentionally small, extremely lightweight social network. Once it is fully developed, it will be decentralized, which means people can run their own instances and connect with other instances, as well as other servers implementing the [ActivityPub](https://www.w3.org/TR/activitypub/) standard.
+
+The biggest inspiration for Gourami was [runyourown.social](https://runyourown.social/), an essay about running your own social network. I highly recommend reading this essay, as most of the ideas in it were the direct inspiration for Gourami. Specifically, the author laments that there are no real opportunities for federated (more on that later) social networks that are *intentionally small*. Gourami is an attempt to be that network. 
+
+Gourami is intentionally lightweight. It's written in [Rust](https://www.rust-lang.org/), uses almost no Javascript, and uses Sqlite as its database. This may not mean much to you if you're not an engineer, but the point is that Gourami's resource requirements are extremely small. This provides a couple of advantages: it's extremely cheap to run, it's energy efficient, and it can be run on cheap hardware, for example a [Raspberry Pi Zero](https://www.raspberrypi.org/products/raspberry-pi-zero/). One of the things that Darius complains about in the essay I mentioned above, which again you should absolutely read, is that it is unreasonably expensive to run a small-scale social network, since the sites aren't really engineering to support 100 users, but rather 1,000 or 10,000 users.
+
+Avoiding Javascript also helps with accessibility and usability. Meeting certain accessibility standards for Gourami is absolutely a goal, but I'm still very early on in development at this point.
+
+In Jenny Odell's *How to Do Nothing*, she discusses the phenomenon of "context collapse" in social media. Many of these ideas are excerpted in her essay in [The Paris Review](https://www.theparisreview.org/blog/2019/04/19/why-does-this-feel-so-bad/)
+
+```
+Spatial and temporal context both have to do with the neighboring entities around something that help define it. Context also helps establish the order of events. Obviously, the bits of information we’re assailed with on Twitter and Facebook feeds are missing both of these kinds of context. Scrolling through the feed, I can’t help but wonder: What am I supposed to think of all this? How am I supposed to think of all this? I imagine different parts of my brain lighting up in a pattern that doesn’t make sense, that forecloses any possible understanding. Many things in there seem important, but the sum total is nonsense, and it produces not understanding but a dull and stupefying dread.
+```
+
+In my view, a way around this is to develop a platform that consciously builds and protext context. One could imagine a Gourami instance that is, for example, tied to a physical location by running on a wifi network, at a coffee shop, or on a [Wireless Mesh Network](https://en.wikipedia.org/wiki/Wireless_mesh_network). By keeping Gourami extremely small, lightweight, and easy to administer, this becomes a possibility that wouldn't be feasible with even other open source social networks.
+
+In *The Communist Horizon*, Jodi Dean more explicitly links the dynamics Jenny Odell discusses with neoliberal capitalism. In what she terms "communicative capitalism", our very time and social relationships become a commodity to be exploited on for-profit social networks. 
+
+```
+Networked communications are the form of capitalism's subsumption of the social substance to its terms and dynamics ... We don't usually pay money directly to Gmail, YouTube, Facebook, and Twitter. These don't cause money, they cost time. It takes time to post and write and time to read and respond. We pay with attention and the cost is focus.
+```
+
+In my view, ideally social networks would be public media institutions run for public good, much like public broadcasting or open access television. Unfortunately, this isn't even remotely an immediate possbility in the United States.
+
+The closest and most promising technology that challenges the privatization of social networks are a loose group of technologies known as ["the federated web" or "fediverse"](https://fediverse.party/en/fediverse/). The largest "Fediverse" platform is [Mastodon](https://joinmastodon.org/), which comprises the vast majority and accounts and users. Many other platforms are essential much-smaller Mastodon clones. Gourami does not attempt to be a Mastodon clone, in a number of regards. I highly recommend spending some time to read about Mastodon, ActivityPub and the Fediverse, as a lot of the concepts are extremely interesting and a huge inspiration for Gourami.
+
+Mastodon and the like are essentially Twitter clones. While Gourami takes inspiration from Twitter (especialy very early Twitter), it isn't trying to be a twitter replacement, but rather a real twitter *alternative*. It derives a lot of its design and practices from the pre-social media internet, such as internet forums, mailing lists, and IRC channels. Gourami is (for now) private and invite-only. It is intentionally small. I haven't tested the performance limits, but it isn't really designed to have more than, say, 100 active users. Any Gourami instance heavily depends on the relationship between the admin and the users -- it's not an anonymous platform, but one in which the admin takes time and energy to curate the space, but from a technical level (administering the server) and from a social level (using certain admin tools which I'm going to build).
+
+While Mastodon is decentralized from an engineering perspective -- I can host my own hardware, it isn't really decentralized from a social perspective. Aside from some servers dedicated to specific hobbies or interests, there isn't that much functional difference between joining one server or joining another (though this could be wrong -- I haven't spent too much time on Mastodon). A lot of real world social networks function around proximity, which is lost on the web. Living in the same town, going to the same school/workplace, etc. Situations where people who normally wouldn't interact with each other are put into proximity. I don't think there's much of that on the web, which is centered around subcultures and subcommunities -- niche interests rather than physical spaces.
+
+Gourami is still very much in alpha and I haven't implemented a lot of the features I have discussed, but I plan on doing more in the future, especialy if there is interest. This essay and Gourami is a draft, please contact me with feedback alex@alexwennerberg.com https://gourami.social/user/alex
