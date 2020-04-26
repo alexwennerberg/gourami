@@ -33,11 +33,22 @@ CREATE TABLE sessions (
 CREATE TABLE notes (
     id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
     user_id INTEGER REFERENCES users(id),
-    parent_id INTEGER,
+    in_reply_to INTEGER REFERENCES notes(id),
     content TEXT,
     created_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP 
 );
 
 
-/* CREATE TABLE notifications ( */
-/* ) */
+CREATE TABLE notifications (
+  id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+  notification_html TEXT,
+  server_message BOOLEAN,
+  created_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP 
+);
+
+CREATE TABLE notification_viewers (
+  notification_id INTEGER REFERENCES notifications(id),
+  user_id INTEGER REFERENCES users(id),
+  viewed BOOLEAN,
+  PRIMARY KEY (notification_id, user_id)
+);

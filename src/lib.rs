@@ -20,6 +20,7 @@ use env_logger;
 use db::note::{NoteInput, Note};
 use db::note;
 use db::user::{RegistrationKey, User, NewUser};
+use db::notification::{NewNotification, NewNotificationViewer, Notification, NotificationViewer};
 use diesel::prelude::*;
 use diesel::sqlite::SqliteConnection;
 use diesel::insert_into;
@@ -57,18 +58,29 @@ struct Global<'a> { // variables used on all pages w header
     page_title: &'a str,
     me: User,
     logged_in: bool,
+    unread_notifications: i64, // db query on every page
 }
 
 impl<'a> Global<'a> {
     fn create(user: Option<User>, page: &'a str) -> Self {
+        use db::schema::notification_viewers::dsl::*;
+        use diesel::dsl::count;
         match user { 
-        Some(u) => Self {
+        Some(u) => {
+            let conn = POOL.get().unwrap();
+            let unread: i64 = notification_viewers
+                .select(count(user_id))
+                .filter(user_id.eq(u.id))
+                .filter(viewed.eq(false))
+                .first(&conn).unwrap();
+            Self {
             me: u,
             page: page, // remove leading slash
             page_title: &page[1..], // remove leading slash
             logged_in: true,
+            unread_notifications: unread,
             ..Default::default()
-        },
+        }},
         None => Self {
             page: page,
             ..Default::default()
@@ -84,6 +96,7 @@ impl<'a> Default for Global<'a> {
             page: "",
             page_title: "",
             logged_in: false,
+            unread_notifications: 0,
         }
     }
 }
@@ -121,17 +134,55 @@ struct NewNoteRequest {
 }
 
 fn new_note(auth_user: User, note_input: &str) -> Result<(), Box<dyn std::error::Error>> {
-    use db::schema::notes::dsl::*;
+    use db::schema::notes::dsl as notes;
     // create activitypub activity object
     // TODO -- micropub?
+    // if its in reply to something
+    let conn = &POOL.get()?;
+    let reply = note::get_reply(note_input);
+    let parsed_note_text = note::parse_note_text(note_input);
     let new_note = NoteInput{
         user_id: auth_user.id,
-        parent_id: None,
-        content: note::parse_note_text(note_input), 
+        in_reply_to: reply,
+        content: parsed_note_text
     };
-    insert_into(notes).values(new_note).execute(&POOL.get()?)?;
+    insert_into(notes::notes).values(new_note).execute(conn)?;
+    // notify person u reply to
+    if let Some(r_id) = reply {
+        use db::schema::notifications::dsl as notifs;
+        use db::schema::notification_viewers::dsl as nv;
+        // create reply notification
+        let message = format!("@{} created a note in reply to 📝{}", auth_user.username, r_id);
+        let new_notification = NewNotification {
+        // reusing the same parser for now. rename maybe
+            notification_html: note::parse_note_text(&message),
+            server_message: false
+        };
+        insert_into(notifs::notifications).values(new_notification).execute(conn)?;
+        // I thinks this may work but worry about multithreading
+        let notif_id = notifs::notifications
+            .order(notifs::id.desc())
+            .select(notifs::id)
+            .first(conn).unwrap();
+        let user_id = notes::notes
+            .select(notes::user_id)
+            .find(r_id)
+            .first(conn)
+            .unwrap(); // TODO 
+               // TODO -- notify all members of the thread
+        // Mark notes as read
+       let new_nv = NewNotificationViewer {
+           notification_id: notif_id,
+           user_id: user_id,
+           viewed: false
+        };
+        
+        insert_into(nv::notification_viewers).values(new_nv).execute(conn)?;
+
+    }
     // generate activitypub object from post request
     // send to outbox
+    // add notification
     // if request made from web form
     Ok(())
 }
@@ -314,6 +365,40 @@ fn get_notes(params: GetPostsParams) -> Result<Vec<UserNote>, diesel::result::Er
     Ok(results.into_iter().map(|a| UserNote{note: a.0, username: a.1.username}).collect())
 }
 
+#[derive(Template)]
+#[template(path = "notifications.html")] 
+struct NotificationTemplate<'a>{
+    notifs: Vec<RenderedNotif>, // required for redirects.
+    global: Global<'a>,
+} 
+
+struct RenderedNotif {
+    notif: Notification,
+    viewed: bool
+}
+fn render_notifications(auth_user: Option<User>) -> impl Reply {
+    use db::schema::notifications::dsl as n;
+    use db::schema::notification_viewers::dsl as nv;
+    let global = Global::create(auth_user.clone(), "/notifications");
+    let conn = &POOL.get().unwrap();
+    let my_id = auth_user.unwrap().id;
+    let notifs = n::notifications.inner_join(nv::notification_viewers)
+        .order(n::id.desc())
+        .filter(nv::user_id.eq(my_id))
+        .limit(1000) // arbitrary TODO cleanup / paginate
+        .load::<(Notification, NotificationViewer)>(conn).unwrap()
+        .into_iter()
+        .map(|(n, nv)| RenderedNotif{notif: n, viewed: nv.viewed}).collect();
+    // mark notifications as read
+    diesel::update(
+        nv::notification_viewers
+        .filter(nv::user_id.eq(my_id))
+        .filter(nv::viewed.eq(false)))
+        .set(nv::viewed.eq(true)
+    ).execute(conn).unwrap();
+    render_template(&NotificationTemplate{global: global, notifs: notifs})
+}
+
 fn render_timeline(auth_user: Option<User>, params:GetPostsParams, url_path: FullPath) -> impl Reply {
     // no session -- anonymous
     // pulls a bunch of data i dont really need
@@ -411,20 +496,6 @@ fn user_page(auth_user: Option<User>, user_name: String, params: GetPostsParams,
 }
 
 
-#[derive(Template)]
-#[template(path = "notifications.html")] 
-struct NotificationTemplate<'a> {
-    // user: Global<'a>,
-    page: &'a str,
-    // notifications: Vec<Notifications>,
-    // thread
-}
-
-// fn notification_page(auth_user: &User) -> impl Reply {
-//     let global = Global::from_session(session):
-//     render_template(&NotificationTemplate{global: global, page: "notifications"}
-// }
-
 async fn handle_rejection(err: Rejection) -> Result<impl Reply, Infallible> {
     Ok(render_template(&ErrorTemplate{global: Global::create(None, "error"), error_message: "You do not have access to this page, it does not exist, or something went wrong."}))
 }
@@ -468,6 +539,10 @@ pub async fn run_server() {
         .and(path!("note" / i32))
         .and(path::full())
         .map(note_page);
+
+    let notification_page = session_filter()
+        .and(path("notifications"))
+        .map(render_notifications);
 
     let server_info_page = session_filter()
         .and(path("server"))
@@ -551,7 +626,7 @@ pub async fn run_server() {
     // TODO secure against xss
         // used for api based authentication
     // let api_filter = session::create_session_filter(&POOL.get());
-    let html_renders = home.or(login_page).or(register_page).or(user_page).or(note_page).or(server_info_page);
+    let html_renders = home.or(login_page).or(register_page).or(user_page).or(note_page).or(server_info_page).or(notification_page);
     let forms = do_register.or(do_login).or(do_logout).or(create_note).or(delete_note);
     // let api
     // catch all for any other paths

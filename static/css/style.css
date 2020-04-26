@@ -49,6 +49,18 @@ a:link, a:visited {
   padding: 3px;
 }
 
+.notif-unread {
+  background-color: #fff9e2;
+  margin: .5em;
+  padding: 3px;
+}
+
+.notif-read {
+  background-color: #F0F0F0;
+  margin: .5em;
+  padding: 3px;
+}
+
 .note-meta {
 }
 

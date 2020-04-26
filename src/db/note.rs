@@ -34,9 +34,8 @@ where D: Deserializer<'de> {
 pub struct NoteInput {
   //pub id: i32, //unsigned?
   pub user_id: i32,
-  pub parent_id: Option<i32>,
   pub content: String, // can we make this a slice?
-  // pub published: chrono::NaiveDateTime,
+  pub in_reply_to: Option<i32>,
 }
 
 pub fn get_reply(note_text: &str) -> Option<i32> {
