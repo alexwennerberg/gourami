@@ -18,6 +18,12 @@ pub async fn run_server() {
         .and(path::full())
         .map(render_timeline);
 
+    let neighborhood = warp::path("neighborhood")
+        .and(session_filter())
+        .and(query())
+        .and(path::full())
+        .map(render_neighborhood);
+
     let user_page = session_filter()
         .and(path!("user" / String))
         .and(form())
@@ -75,9 +81,9 @@ pub async fn run_server() {
         // Verbose -- see if you can refactor
         .map(|u: Option<User>, f: NewNoteRequest| match u {
             Some(u) => {
-                new_note(u, &f.note_input).unwrap(); // TODO fix unwrap
-                // let red_url: http::Uri = f.redirect_url.parse().unwrap();
-                redirect(http::Uri::from_static("/"))},
+                new_note(u, &f.note_input, f.neighborhood.is_some()).unwrap(); 
+                let red_url: http::Uri = f.redirect_url.parse().unwrap();
+                redirect(red_url)},
             None => redirect(http::Uri::from_static("error"))});
 
     let delete_note = path("delete_note")
@@ -124,7 +130,7 @@ pub async fn run_server() {
     // TODO secure against xss
         // used for api based authentication
     // let api_filter = session::create_session_filter(&POOL.get());
-    let html_renders = home.or(login_page).or(register_page).or(user_page).or(note_page).or(server_info_page).or(notification_page).or(user_edit_page);
+    let html_renders = home.or(login_page).or(register_page).or(user_page).or(note_page).or(server_info_page).or(notification_page).or(user_edit_page).or(neighborhood);
     let forms = do_register.or(do_login).or(do_logout).or(create_note).or(delete_note).or(edit_user);
     // let api
     // catch all for any other paths

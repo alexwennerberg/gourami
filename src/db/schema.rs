@@ -5,6 +5,7 @@ table! {
         in_reply_to -> Nullable<Integer>,
         content -> Text,
         created_time -> Timestamp,
+        neighborhood -> Bool,
     }
 }
 

@@ -3,6 +3,13 @@
 <textarea id="note_input" name="note_input" rows=3 placeholder="note"></textarea>
 <br>
 <button id="post" class="submit-button-style">create note</button>
+<input type="checkbox" id="neighborhood" name="neighborhood" 
+{% if global.page == "/neighborhood" %} 
+checked>
+{% else %}
+unchecked>
+{% endif %}
+<label for="neighborhood">Share with neighborhood?</label>
 <input type="hidden" name="redirect_url" value="{{global.page}}">
 </form>
 </div>

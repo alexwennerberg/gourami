@@ -1,3 +1,19 @@
+CORE FEATURES 
+
+Proper threading
+- Render all DESCENDENTS
+(allow for replies to multiple items...)
+
+Notifications
+- Notify on tag
+
+Replace notes with >>
+
+Federation / ActivityPub
+retryeets
+following/followers & separate timelines
+text cant exist after URLs
+
 REFACTORING --
 
 askama stuff 

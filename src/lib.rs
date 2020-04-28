@@ -130,9 +130,10 @@ fn delete_note(note_id: i32)-> Result<(), Box<dyn std::error::Error>> {
 struct NewNoteRequest {
     note_input: String, // has to be String
     redirect_url: String,
+    neighborhood: Option<String>, // "on"
 }
 
-fn new_note(auth_user: User, note_input: &str) -> Result<(), Box<dyn std::error::Error>> {
+fn new_note(auth_user: User, note_input: &str, neighborhood: bool,) -> Result<(), Box<dyn std::error::Error>> {
     use db::schema::notes::dsl as notes;
     // create activitypub activity object
     // TODO -- micropub?
@@ -143,7 +144,8 @@ fn new_note(auth_user: User, note_input: &str) -> Result<(), Box<dyn std::error:
     let new_note = NoteInput{
         user_id: auth_user.id,
         in_reply_to: reply,
-        content: parsed_note_text
+        content: parsed_note_text,
+        neighborhood: neighborhood
     };
     insert_into(notes::notes).values(new_note).execute(conn)?;
     // notify person u reply to
@@ -319,7 +321,7 @@ struct TimelineTemplate<'a>{
 struct GetPostsParams {
     #[serde(default = "default_page")]
     page_num: i64,
-    user_id: Option<i32>
+    user_id: Option<i32>,
 }
 fn default_page() -> i64 {
     1
@@ -329,7 +331,7 @@ impl Default for GetPostsParams {
     fn default() -> Self {
         GetPostsParams {
             page_num: 1,
-            user_id: None
+            user_id: None,
         }
     }
 }
@@ -351,7 +353,7 @@ fn get_single_note(note_id: i32) -> Option<Vec<UserNote>> {
 }
 
 /// We have to do a join here
-fn get_notes(params: GetPostsParams) -> Result<Vec<UserNote>, diesel::result::Error> {
+fn get_notes(params: GetPostsParams, neighborhood: Option<bool>) -> Result<Vec<UserNote>, diesel::result::Error> {
     use db::schema::notes::dsl as n;
     use db::schema::users::dsl as u;
     const PAGE_SIZE: i64 = 250;
@@ -361,6 +363,10 @@ fn get_notes(params: GetPostsParams) -> Result<Vec<UserNote>, diesel::result::Er
         .offset((params.page_num - 1) * PAGE_SIZE).into_boxed();
     if let Some(u_id) = params.user_id {
         query = query.filter(u::id.eq(u_id));
+    }
+    match neighborhood {
+        Some(n) => query = query.filter(n::neighborhood.eq(n)),
+        None => ()
     }
     let results = query.load::<(Note, User)>(&POOL.get().unwrap()).unwrap(); // TODO get rid of unwrap
     Ok(results.into_iter().map(|a| UserNote{note: a.0, username: a.1.username}).collect())
@@ -404,11 +410,32 @@ fn render_timeline(auth_user: Option<User>, params:GetPostsParams, url_path: Ful
     // no session -- anonymous
     // pulls a bunch of data i dont really need
     let header = Global::create(auth_user, url_path.as_str());
-    let notes = get_notes(params);
+    // TODO -- ignore neighborhood replies
+    let notes = get_notes(params, None);
     match notes {
         Ok(n) => render_template(&TimelineTemplate{
             global: header,
             notes: n,
+        }),
+        _ => render_template(&ErrorTemplate{global: header, error_message: "Could not fetch notes", ..Default::default()})
+    }
+
+}
+
+#[derive(Template)]
+#[template(path = "neighborhood.html")] 
+struct NeighborhoodTemplate<'a>{
+    global: Global<'a>,
+    notes: Vec<UserNote>,
+} // TODO reconsider structure
+
+fn render_neighborhood(auth_user: Option<User>, params:GetPostsParams, url_path: FullPath)  -> impl Reply{
+    let header = Global::create(auth_user, url_path.as_str());
+    let notes = get_notes(params, Some(true));
+    match notes {
+    Ok(n) => render_template(&TimelineTemplate{
+        global: header,
+        notes: n,
         }),
         _ => render_template(&ErrorTemplate{global: header, error_message: "Could not fetch notes", ..Default::default()})
     }
@@ -479,7 +506,7 @@ fn user_page(auth_user: Option<User>, user_name: String, mut params: GetPostsPar
         .ok();
     if let Some(u) = user {
         params.user_id = Some(u.id);
-        let notes = get_notes(params).unwrap();
+        let notes = get_notes(params, None).unwrap();
         render_template(&UserTemplate{
             global: header,
             page: &u.username,

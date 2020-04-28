@@ -13,10 +13,11 @@ use crate::db::user::User; // weird import
 pub struct Note { // rename RenderedNote
   pub id: i32,
   pub user_id: i32,
-  pub parent_id: Option<i32>,
+  pub in_reply_to: Option<i32>,
   // deserialize wiht
   pub content: String,
   pub created_time: String,
+  pub neighborhood: bool,
 }
 
 /// Content in the DB is stored in plaintext (WILL BE)
@@ -36,10 +37,11 @@ pub struct NoteInput {
   pub user_id: i32,
   pub content: String, // can we make this a slice?
   pub in_reply_to: Option<i32>,
+  pub neighborhood: bool,
 }
 
+/// We render the first >>[num] or note emoji as a reply, for threading.
 pub fn get_reply(note_text: &str) -> Option<i32> {
-    /// We render the first >>[num] or note emoji as a reply, for threading.
     let re = Regex::new(r"\B(📝|>>)(\d+)").unwrap();
     match re.captures(note_text) {
         Some(t) => t.get(2).unwrap().as_str().parse().ok(),
