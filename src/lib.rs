@@ -144,7 +144,7 @@ fn new_note(auth_user: User, note_input: &str, neighborhood: bool,) -> Result<()
     let new_note = NoteInput{
         user_id: auth_user.id,
         in_reply_to: reply,
-        content: parsed_note_text,
+        content: &parsed_note_text,
         neighborhood: neighborhood
     };
     insert_into(notes::notes).values(new_note).execute(conn)?;
@@ -343,7 +343,7 @@ pub struct UserNote {
     username: String,
 }
 
-// thread. hm
+//  TODO merge this with the other get notes function
 fn get_single_note(note_id: i32) -> Option<Vec<UserNote>> {
     use db::schema::notes::dsl as n;
     use db::schema::users::dsl as u;

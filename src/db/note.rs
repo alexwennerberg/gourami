@@ -14,7 +14,6 @@ pub struct Note { // rename RenderedNote
   pub id: i32,
   pub user_id: i32,
   pub in_reply_to: Option<i32>,
-  #[serde(deserialize_with="render_content")]
   pub content: String,
   pub created_time: String,
   pub neighborhood: bool,
@@ -28,17 +27,14 @@ pub struct Note { // rename RenderedNote
 /// We want to render it so that it is rendered in HTML
 /// This basically just means escaping characters and adding 
 /// automatic URL parsing
-fn render_content<'de, D>(deserializer: D) -> Result<String, D::Error>
-where D: Deserializer<'de> {
-   let s: &str = Deserialize::deserialize(deserializer)?;
-    return Ok(parse_note_text(s));
-}
+///
 
 /// Run on both write to db and read from db, for redundancy
 /// Prevents malicious content from being rendered
 /// See the mastodon page for inspiration: https://docs.joinmastodon.org/spec/activitypub/
 /// This is currently very aggressive -- maybe we could loosen it a bit
 /// We probably want to allow microformats and some accessibiltiy tags
+/// Dont allow a so we cant have sneaky urls -- I'll do all the url parsing on my end.
 fn remove_unnacceptable_html(input_text: &str) -> String {
     let ok_tags = hashset!["br", "p", "span"];
     let html_clean = ammonia::Builder::default()
@@ -50,10 +46,10 @@ fn remove_unnacceptable_html(input_text: &str) -> String {
 
 #[derive(Insertable, Clone, Debug)]
 #[table_name = "notes"]
-pub struct NoteInput {
+pub struct NoteInput<'a> {
   //pub id: i32, //unsigned?
   pub user_id: i32,
-  pub content: String, // TODO make slice
+  pub content: &'a str, 
   pub in_reply_to: Option<i32>,
   pub neighborhood: bool,
 }
@@ -109,7 +105,6 @@ pub fn parse_note_text(text: &str) -> String {
 	let replace_str = "<a href=\"/user/$2\">$0</a>";
 	let people_parsed = person_regex.replace_all(&notes_parsed, &replace_str as &str).to_string();
     // TODO get mentions too
-    println!("{}", people_parsed);
     return people_parsed;
 }
 
