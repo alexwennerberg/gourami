@@ -101,28 +101,28 @@ pub async fn run_server() {
         .and(warp::fs::dir("./static"));
 
     // activityPub stuff
-    //
+    // This stuff should filter based on the application headers
     // POST
-    let post_user_inbox = path!("user" / String / "inbox.json" )
-        .and(json())
-        .map(ap::post_user_inbox);
+    // let post_server_inbox = path!("user" / String / "inbox.json" )
+    //     .and(json())
+    //     .map(ap::post_user_inbox);
 
-    let post_user_outbox = path!("user" / String / "outbox.json" )
-        .and(json())
-        .map(ap::post_user_outbox);
+//     let post_user_outbox = path!("user" / String / "outbox.json" )
+//         .and(json())
+//         .map(ap::post_user_outbox);
 
-    let get_user_outbox = path!("user" / String / "outbox.json" )
-        .map(ap::get_user_outbox);
+//     let get_user_outbox = path!("user" / String / "outbox.json" )
+//         .map(ap::get_user_outbox);
 
     // let get_user_inbox = path!("user" / String / "outbox.json" )
     //     .and(json())
     //     .map(ap::post_user_outbox);
 
-    let user_followers = path!("user" / String / "followers.json" )
-        .map(ap::user_followers);
+//     let user_followers = path!("user" / String / "followers.json" )
+//         .map(ap::user_followers);
 
-    let user_following = path!("user" / String / "following.json" )
-        .map(ap::user_following);
+//     let user_following = path!("user" / String / "following.json" )
+//         .map(ap::user_following);
 
     // https://github.com/seanmonstar/warp/issues/42 -- how to set up diesel
     // TODO set content length limit 

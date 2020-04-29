@@ -16,6 +16,8 @@ text cant exist after URLs
 
 REFACTORING --
 
+Add limit of 255 characters for usernames and other limits to get urls to render
+
 askama stuff 
 MIDDLEWARE
 

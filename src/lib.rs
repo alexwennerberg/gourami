@@ -181,6 +181,7 @@ fn new_note(auth_user: User, note_input: &str, neighborhood: bool,) -> Result<()
         insert_into(nv::notification_viewers).values(new_nv).execute(conn)?;
 
     }
+    // ap::generate_ap(ap::Activity::create_note);
     // generate activitypub object from post request
     // send to outbox
     // add notification

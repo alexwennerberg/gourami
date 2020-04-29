@@ -6,6 +6,10 @@ table! {
         content -> Text,
         created_time -> Timestamp,
         neighborhood -> Bool,
+        is_remote -> Bool,
+        remote_url -> Nullable<Varchar>,
+        remote_creator -> Nullable<Varchar>,
+        remote_id -> Nullable<Varchar>,
     }
 }
 

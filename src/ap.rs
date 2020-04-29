@@ -1,20 +1,63 @@
+/// Users don't follow users in Gourami. Instead the server does hte following
+/// There are a number of reasons for this:
+/// Gives it a more 'community' feel -- everyone shares the same timeline
+/// Much simpler from an engineering and user perspective -- I think its difficult for
+/// non-engineering people to properly separate different audience
+///
+/// This is a somewhat eccentric activitypub implementation, but it is as consistent with the spec
+/// as I can make it!
+
 use activitystreams::activity::{Accept, Activity, Announce, Create, Delete, Follow, Reject};
+use activitystreams::BaseBox;
 use log::debug;
-use serde_json::Value;
+use serde_json::{Value, Error};
+use serde_json::from_str;
+use crate::db::note::{RemoteNoteInput};
 
 // gonna be big
-fn process_unstructured_ap(message: &str) {
+//
+// TODO -- use serde json here
+fn process_unstructured_ap(message: &str) -> Result<(), Box<dyn std::error::Error>>{
     // Actions usually associated with notes
-    use serde_json::from_str;
     // maybe there's a cleaner way to do this. cant iterate over types
     // TODO inbox forwarding https://www.w3.org/TR/activitypub/#inbox-forwarding
-    if let Some(create) = from_str::<Create>(message).ok() {
-        // create note database object
-    } else if let Some(delete) = from_str::<Delete>(message).ok() {
-        // delete note database object
+    let v: Value = serde_json::from_str(message)?;
+    let _type = v.get("type").ok_or("No type found")?;
+    if _type == "Create" {
+        let object = v.get("object").ok_or("No object found")?;
+        let _type = object.get("type").ok_or("No object type found")?;
+        if _type == "Note" {
+            let content = object.get("content").ok_or("No content found")?.as_str().ok_or("Not a string")?;
+            // clean content 
+            // let in_reply_to = match object.get("inReplyTo") {
+            //     Some(v) => Some(v.as_str().ok_or("Not a string")?), // TODO -- get reply from database
+                // None => None
+            // };
+            let remote_creator = object.get("attributedTo").ok_or("No attributedTo found")?.as_str().ok_or("Not a string")?;
+            let remote_url = object.get("url").ok_or("No url Found")?.as_str().ok_or("Not a string")?;
+            let remote_id = object.get("id").ok_or("No ID found")?.as_str().ok_or("Not a string")?;
+            let new_remote_note = RemoteNoteInput {
+            content: content,
+            in_reply_to: None,
+           neighborhood: true,
+           is_remote: true,
+           user_id: -1, // for remote. placeholder. not sure what to do with this ultimately
+           remote_creator: remote_creator,
+            remote_id: remote_id,
+            remote_url: remote_url } ;
+            println!("{:?}", new_remote_note);
+        }
     }
     debug!("Unrecognized or invalid activity");
+    Ok(())
 }
+
+fn new_note_to_ap_message() {
+}
+
+// /// used to send to others
+// fn generate_ap(activity: Activity) {
+// }
 
 #[cfg(test)]
 mod tests {
@@ -77,15 +120,12 @@ mod tests {
     }
 }
 
-pub fn post_user_inbox(user_name: String, message: Value) {}
+pub fn post_inbox(user_name: String, message: Value) {}
 
-pub fn post_user_outbox(user_name: String, message: Value) {}
+pub fn post_outbox(user_name: String, message: Value) {}
 
-pub fn get_user_outbox(user_name: String) {}
-
-// requires authentication
-pub fn get_user_inbox(user_name: String) {}
-
+// TODO figure out how to follow mastodon
+//
 pub fn user_followers(user_name: String) {}
 
 pub fn user_following(user_name: String) {}

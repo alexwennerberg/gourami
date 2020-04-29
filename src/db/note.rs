@@ -14,10 +14,14 @@ pub struct Note { // rename RenderedNote
   pub id: i32,
   pub user_id: i32,
   pub in_reply_to: Option<i32>,
-  // deserialize wiht
+  #[serde(deserialize_with="render_content")]
   pub content: String,
   pub created_time: String,
   pub neighborhood: bool,
+  pub is_remote: bool,
+  pub remote_url: Option<String>,
+  pub remote_creator: Option<String>,
+  pub remote_id: Option<String>
 }
 
 /// Content in the DB is stored in plaintext (WILL BE)
@@ -30,14 +34,41 @@ where D: Deserializer<'de> {
     return Ok(parse_note_text(s));
 }
 
-#[derive(Insertable, Clone)]
+/// Run on both write to db and read from db, for redundancy
+/// Prevents malicious content from being rendered
+/// See the mastodon page for inspiration: https://docs.joinmastodon.org/spec/activitypub/
+/// This is currently very aggressive -- maybe we could loosen it a bit
+/// We probably want to allow microformats and some accessibiltiy tags
+fn remove_unnacceptable_html(input_text: &str) -> String {
+    let ok_tags = hashset!["br", "p", "span"];
+    let html_clean = ammonia::Builder::default()
+        .tags(ok_tags)
+        .clean(input_text)
+        .to_string();
+    return html_clean
+}
+
+#[derive(Insertable, Clone, Debug)]
 #[table_name = "notes"]
 pub struct NoteInput {
   //pub id: i32, //unsigned?
   pub user_id: i32,
-  pub content: String, // can we make this a slice?
+  pub content: String, // TODO make slice
   pub in_reply_to: Option<i32>,
   pub neighborhood: bool,
+}
+
+#[derive(Insertable, Clone, Debug)]
+#[table_name = "notes"]
+pub struct RemoteNoteInput<'a> {
+    pub user_id: i32,
+    pub content: &'a str, 
+    pub in_reply_to: Option<i32>,
+    pub neighborhood: bool,
+    pub is_remote: bool,
+    pub remote_creator: &'a str,
+    pub remote_url: &'a str,
+    pub remote_id: &'a str,
 }
 
 /// We render the first >>[num] or note emoji as a reply, for threading.
@@ -55,14 +86,14 @@ pub fn get_reply(note_text: &str) -> Option<i32> {
 pub fn parse_note_text(text: &str) -> String {
     // There shouldn't be any html tags in the db, but
     // Let's strip it out just in case
-    let html_clean = ammonia::clean_text(text);
+    let html_clean = remove_unnacceptable_html(text);
     if text.len() == 0 {
         return String::new();
     }
     // this regex has to function after html parsing has happened. very weird.
     let re = Regex::new(
         r"(?ix)
-        \b(([\w-]+:&\#47;&\#47;?|www[.])[^\s()<>]+(?:\([\w\d]+\)|([^[:punct:]\s]|&\#47)))
+        \b(([\w-]+://?|www[.])[^\s()<>]+(?:\([\w\d]+\)|([^[:punct:]\s]|/)))
     ",
     )
     .unwrap();
@@ -78,6 +109,7 @@ pub fn parse_note_text(text: &str) -> String {
 	let replace_str = "<a href=\"/user/$2\">$0</a>";
 	let people_parsed = person_regex.replace_all(&notes_parsed, &replace_str as &str).to_string();
     // TODO get mentions too
+    println!("{}", people_parsed);
     return people_parsed;
 }
 
@@ -93,20 +125,19 @@ mod tests {
     #[test]
     fn test_escape_html() {
         let example = "<script>haxxor</script>hi>";
-        assert!(parse_note_text(example) == ammonia::clean_text(example));
+        assert!(parse_note_text(example) == "hi&gt;");
     }
 
     #[test]
     fn test_string_without_urls() {
         let src = "<p>Some HTML</p>";
-        assert!(parse_note_text(src) == ammonia::clean_text(src));
+        assert!(parse_note_text(src) == src);
     }
 
     #[test]
-    fn test_string_with_http_urls() {
-        let src = "Check this out: https://doc.rust-lang.org/\n
-               https://fr.wikipedia.org/wiki/Caf%C3%A9ine";
-        let linked = "Check&#32;this&#32;out:&#32;<a href=\"https:&#47;&#47;doc.rust-lang.org&#47;&#10;&#10;&#32;&#32;&#32;&#32;&#32;&#32;&#32;&#32;&#32;&#32;&#32;&#32;&#32;&#32;&#32;https:&#47;&#47;fr.wikipedia.org&#47;wiki&#47;Caf%C3%A9ine\">https:&#47;&#47;doc.rust-lang.org&#47;&#10;&#10;&#32;&#32;&#32;&#32;&#32;&#32;&#32;&#32;&#32;&#32;&#32;&#32;&#32;&#32;&#32;https:&#47;&#47;fr.wikipedia.org&#47;wiki&#47;Caf%C3%A9ine</a>";
+    fn test_string_with_http_urls() { // TODO fix test
+        let src = "Check this out: https://doc.rust-lang.org";
+        let linked = "Check this out: <a href=\"https://doc.rust-lang.org\">https://doc.rust-lang.org</a>";
         assert!(parse_note_text(src) == linked)
     }
 
@@ -115,21 +146,21 @@ mod tests {
         let src = "Send spam to mailto://oz@cypr.io";
         assert!(
             parse_note_text(src)
-                == "Send&#32;spam&#32;to&#32;<a href=\"mailto:&#47;&#47;oz@cypr.io\">mailto:&#47;&#47;oz@cypr.io</a>"
+                == "Send spam to <a href=\"mailto://oz@cypr.io\">mailto://oz@cypr.io</a>"
         )
     }
 
     #[test]
     fn test_user_replace() {
         let src = "@joe whats up @sally";
-        let linked = "<a href=\"/user/joe\">@joe</a>&#32;whats&#32;up&#32;<a href=\"/user/sally\">@sally</a>";
+        let linked = "<a href=\"/user/joe\">@joe</a> whats up <a href=\"/user/sally\">@sally</a>";
         assert!(parse_note_text(src) == linked)
     }
 
     #[test]
     fn test_note_replace() {
         let src = "📝123 cool post >>456";
-        let linked = "<a href=\"/note/123\">📝123</a>&#32;cool&#32;post&#32;<a href=\"/note/456\">&gt;&gt;456</a>";
+        let linked = "<a href=\"/note/123\">📝123</a> cool post <a href=\"/note/456\">&gt;&gt;456</a>";
         assert!(parse_note_text(src) == linked)
     }
 
