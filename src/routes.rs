@@ -102,27 +102,19 @@ pub async fn run_server() {
 
     // activityPub stuff
     // This stuff should filter based on the application headers
+    // setup authentication
     // POST
-    // let post_server_inbox = path!("user" / String / "inbox.json" )
-    //     .and(json())
-    //     .map(ap::post_user_inbox);
+    // TODO -- setup proper replies
+    let post_server_inbox = path!("inbox.json" )
+        .and(json())
+        .map(ap::post_inbox);
 
-//     let post_user_outbox = path!("user" / String / "outbox.json" )
-//         .and(json())
-//         .map(ap::post_user_outbox);
+    let post_server_outbox = path!("outbox.json" )
+        .and(json())
+        .map(ap::post_outbox);
 
-//     let get_user_outbox = path!("user" / String / "outbox.json" )
-//         .map(ap::get_user_outbox);
-
-    // let get_user_inbox = path!("user" / String / "outbox.json" )
-    //     .and(json())
-    //     .map(ap::post_user_outbox);
-
-//     let user_followers = path!("user" / String / "followers.json" )
-//         .map(ap::user_followers);
-
-//     let user_following = path!("user" / String / "following.json" )
-//         .map(ap::user_following);
+    let get_server_outbox = path!("outbox.json" )
+        .map(ap::get_outbox);
 
     // https://github.com/seanmonstar/warp/issues/42 -- how to set up diesel
     // TODO set content length limit 

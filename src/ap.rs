@@ -17,11 +17,10 @@ use crate::db::note::{RemoteNoteInput};
 // gonna be big
 //
 // TODO -- use serde json here
-fn process_unstructured_ap(message: &str) -> Result<(), Box<dyn std::error::Error>>{
+fn process_unstructured_ap(v: Value) -> Result<(), Box<dyn std::error::Error>>{
     // Actions usually associated with notes
     // maybe there's a cleaner way to do this. cant iterate over types
     // TODO inbox forwarding https://www.w3.org/TR/activitypub/#inbox-forwarding
-    let v: Value = serde_json::from_str(message)?;
     let _type = v.get("type").ok_or("No type found")?;
     if _type == "Create" {
         let object = v.get("object").ok_or("No object found")?;
@@ -120,9 +119,13 @@ mod tests {
     }
 }
 
-pub fn post_inbox(user_name: String, message: Value) {}
+pub fn post_inbox(message: Value) {
+    process_unstructured_ap(message);
+}
 
-pub fn post_outbox(user_name: String, message: Value) {}
+pub fn get_outbox() {}
+
+pub fn post_outbox(message: Value) {}
 
 // TODO figure out how to follow mastodon
 //
