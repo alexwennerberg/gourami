@@ -27,3 +27,13 @@ Mastodon and the like are essentially Twitter clones. While Gourami takes inspir
 While Mastodon is decentralized from an engineering perspective -- I can host my own hardware, it isn't really decentralized from a social perspective. Aside from some servers dedicated to specific hobbies or interests, there isn't that much functional difference between joining one server or joining another (though this could be wrong -- I haven't spent too much time on Mastodon). A lot of real world social networks function around proximity, which is lost on the web. Living in the same town, going to the same school/workplace, etc. Situations where people who normally wouldn't interact with each other are put into proximity. I don't think there's much of that on the web, which is centered around subcultures and subcommunities -- niche interests rather than physical spaces.
 
 Gourami is still very much in alpha and I haven't implemented a lot of the features I have discussed, but I plan on doing more in the future, especialy if there is interest. This essay and Gourami is a draft, please contact me with feedback alex@alexwennerberg.com https://gourami.social/user/alex
+
+Links:
+
+* Jenny Odell's discussion of adding context to social media in *How to Do Nothing*
+* https://runyourown.social/
+* https://joinmastodon.org/
+* https://sourcehut.org/    
+* https://100r.co/site/mission.html
+* https://solar.lowtechmagazine.com/2020/01/how-sustainable-is-a-solar-powered-website.html
+* https://www.nycmesh.net/
