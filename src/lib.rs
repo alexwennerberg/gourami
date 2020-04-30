@@ -4,6 +4,7 @@ extern crate diesel;
 #[macro_use] extern crate lazy_static;
 #[macro_use] extern crate maplit;
 
+use serde_json::{Value};
 use std::convert::Infallible;
 use zxcvbn::zxcvbn;
 
@@ -133,7 +134,25 @@ struct NewNoteRequest {
     neighborhood: Option<String>, // "on"
 }
 
-fn new_note(auth_user: User, note_input: &str, neighborhood: bool,) -> Result<(), Box<dyn std::error::Error>> {
+async fn handle_new_note_form(u: Option<User>, f: NewNoteRequest) -> Result<impl Reply, Rejection> {
+    match u {
+    Some(u) => {
+        let n = new_note(u, &f.note_input, f.neighborhood.is_some()).unwrap();
+        send_note(&n).await.unwrap(); // TODO error handling
+        let red_url: http::Uri = f.redirect_url.parse().unwrap();
+        Ok(redirect(red_url))},
+    None => Ok(redirect(http::Uri::from_static("error")))}
+}
+
+async fn send_note(note: &NoteInput) -> Result<(), reqwest::Error> {
+    let nj = ap::new_note_to_ap_message(note);
+    let client = reqwest::Client::new();
+    client.post("http://localhost:3030/inbox.json")
+        .json(&nj)
+        .send().await?;
+    Ok(())
+}
+pub fn new_note(auth_user: User, note_input: &str, neighborhood: bool,) -> Result<NoteInput, Box<dyn std::error::Error>> {
     use db::schema::notes::dsl as notes;
     // create activitypub activity object
     // TODO -- micropub?
@@ -144,10 +163,10 @@ fn new_note(auth_user: User, note_input: &str, neighborhood: bool,) -> Result<()
     let new_note = NoteInput{
         user_id: auth_user.id,
         in_reply_to: reply,
-        content: &parsed_note_text,
+        content: parsed_note_text,
         neighborhood: neighborhood
     };
-    insert_into(notes::notes).values(new_note).execute(conn)?;
+    insert_into(notes::notes).values(&new_note).execute(conn)?;
     // notify person u reply to
     if let Some(r_id) = reply {
         use db::schema::notifications::dsl as notifs;
@@ -181,12 +200,11 @@ fn new_note(auth_user: User, note_input: &str, neighborhood: bool,) -> Result<()
         insert_into(nv::notification_viewers).values(new_nv).execute(conn)?;
 
     }
-    // ap::generate_ap(ap::Activity::create_note);
     // generate activitypub object from post request
     // send to outbox
     // add notification
     // if request made from web form
-    Ok(())
+    Ok(new_note)
 }
 
 // ActivityPub outbox 
@@ -539,6 +557,27 @@ fn render_user_edit_page(user: Option<User>, user_name: String) -> impl Reply {
     }
 }
 
+
+pub fn get_outbox() {}
+
+pub fn post_outbox(message: Value) {}
+
+// TODO figure out how to follow mastodon
+//
+pub fn user_followers(user_name: String) {}
+
+pub fn user_following(user_name: String) {}
+
+pub fn post_inbox(message: Value) -> impl Reply {
+    // TODO check if it is a create note message
+    use db::schema::notes::dsl::*;
+    let conn = &POOL.get().unwrap();
+    let mynote = ap::parse_create_note(message).unwrap();
+    insert_into(notes).values(&mynote).execute(conn).unwrap();
+    // insert new note into database
+    // thtas it!
+    Ok("ok!")
+}
 
 #[derive(Deserialize)]
 struct EditForm {

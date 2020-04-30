@@ -1,5 +1,8 @@
 CORE FEATURES 
 
+Change to GPL v3 license due to dependencies
+
+
 Proper threading
 - Render all DESCENDENTS
 (allow for replies to multiple items...)

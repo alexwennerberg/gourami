@@ -46,10 +46,10 @@ fn remove_unnacceptable_html(input_text: &str) -> String {
 
 #[derive(Insertable, Clone, Debug)]
 #[table_name = "notes"]
-pub struct NoteInput<'a> {
+pub struct NoteInput {
   //pub id: i32, //unsigned?
   pub user_id: i32,
-  pub content: &'a str, 
+  pub content: String,
   pub in_reply_to: Option<i32>,
   pub neighborhood: bool,
 }

@@ -8,13 +8,14 @@
 /// as I can make it!
 
 use serde_json::json;
-use activitystreams::activity::{Accept, Activity, Announce, Create, Delete, Follow, Reject};
-use activitystreams::BaseBox;
-use log::debug;
-use serde_json::{Value, Error};
-use serde_json::from_str;
+use serde_json::{Value};
 use crate::db::note::{NoteInput, RemoteNoteInput};
+use warp::{Reply, Filter, Rejection};
 
+
+lazy_static! {
+    // const SERVER_ACTOR = "gourami.social"
+}
 
 enum Action {
     CreateNote,
@@ -27,7 +28,7 @@ fn categorize_input_message(v: Value) -> Action {
     Action::DoNothing
 }
 
-fn parse_create_note(v: Value) -> Result<RemoteNoteInput, Box<dyn std::error::Error>>{
+pub fn parse_create_note(v: Value) -> Result<RemoteNoteInput, Box<dyn std::error::Error>>{
     // Actions usually associated with notes
     // maybe there's a cleaner way to do this. cant iterate over types
     // TODO inbox forwarding https://www.w3.org/TR/activitypub/#inbox-forwarding
@@ -57,7 +58,24 @@ fn parse_create_note(v: Value) -> Result<RemoteNoteInput, Box<dyn std::error::Er
 
 
 /// Generate an AP create message from a new note
-fn new_note_to_ap_message(note_input: NoteInput) {
+pub fn new_note_to_ap_message(note_input: &NoteInput) -> Value{
+    json!({
+        "id": "someid",
+        "type": "Create",
+        "actor": "my_server/actor", // get from DEPLOY_URL
+        "published": "now",
+        "to": [
+            "destination.server"
+        ],
+        "object": {
+            "id": "unique id",
+            "type": "note",
+            "url": "abc",
+            "inReplyTo": "none",
+            "attributedTo": "joe",
+            "content": "whats up",
+        }
+    })
 }
 
 // /// used to send to others
@@ -133,20 +151,3 @@ mod tests {
         })
     }
 }
-
-pub fn post_inbox(message: Value) {
-    // TODO check if it is a create note message
-    parse_create_note(message);
-    // insert new note into database
-    // thtas it!
-}
-
-pub fn get_outbox() {}
-
-pub fn post_outbox(message: Value) {}
-
-// TODO figure out how to follow mastodon
-//
-pub fn user_followers(user_name: String) {}
-
-pub fn user_following(user_name: String) {}

@@ -79,12 +79,7 @@ pub async fn run_server() {
         .and(session_filter())
         .and(form())
         // Verbose -- see if you can refactor
-        .map(|u: Option<User>, f: NewNoteRequest| match u {
-            Some(u) => {
-                new_note(u, &f.note_input, f.neighborhood.is_some()).unwrap(); 
-                let red_url: http::Uri = f.redirect_url.parse().unwrap();
-                redirect(red_url)},
-            None => redirect(http::Uri::from_static("error"))});
+        .and_then(handle_new_note_form);
 
     let delete_note = path("delete_note")
         .and(session_filter())
@@ -107,14 +102,14 @@ pub async fn run_server() {
     // TODO -- setup proper replies
     let post_server_inbox = path!("inbox.json" )
         .and(json())
-        .map(ap::post_inbox);
+        .map(post_inbox);
 
     let post_server_outbox = path!("outbox.json" )
         .and(json())
-        .map(ap::post_outbox);
+        .map(post_outbox);
 
     let get_server_outbox = path!("outbox.json" )
-        .map(ap::get_outbox);
+        .map(get_outbox);
 
     // https://github.com/seanmonstar/warp/issues/42 -- how to set up diesel
     // TODO set content length limit 
@@ -124,6 +119,7 @@ pub async fn run_server() {
     // let api_filter = session::create_session_filter(&POOL.get());
     let html_renders = home.or(login_page).or(register_page).or(user_page).or(note_page).or(server_info_page).or(notification_page).or(user_edit_page).or(neighborhood);
     let forms = do_register.or(do_login).or(do_logout).or(create_note).or(delete_note).or(edit_user);
+    let api_post = post_server_inbox;
     // let api
     // catch all for any other paths
 
@@ -132,6 +128,11 @@ pub async fn run_server() {
             warp::post()
             .and(warp::body::content_length_limit(1024 * 32))
             .and(forms))
+        .or(
+            warp::post()
+            .and(warp::body::content_length_limit(1024 * 64))
+            .and(api_post)
+        )
         .or(static_files)
         .with(warp::log("server"))
         .recover(handle_rejection)
