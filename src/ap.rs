@@ -7,51 +7,57 @@
 /// This is a somewhat eccentric activitypub implementation, but it is as consistent with the spec
 /// as I can make it!
 
+use serde_json::json;
 use activitystreams::activity::{Accept, Activity, Announce, Create, Delete, Follow, Reject};
 use activitystreams::BaseBox;
 use log::debug;
 use serde_json::{Value, Error};
 use serde_json::from_str;
-use crate::db::note::{RemoteNoteInput};
+use crate::db::note::{NoteInput, RemoteNoteInput};
 
-// gonna be big
-//
-// TODO -- use serde json here
-fn process_unstructured_ap(v: Value) -> Result<(), Box<dyn std::error::Error>>{
+
+enum Action {
+    CreateNote,
+    DoNothing,
+    // DeleteNote
+}
+
+
+fn categorize_input_message(v: Value) -> Action {
+    Action::DoNothing
+}
+
+fn parse_create_note(v: Value) -> Result<RemoteNoteInput, Box<dyn std::error::Error>>{
     // Actions usually associated with notes
     // maybe there's a cleaner way to do this. cant iterate over types
     // TODO inbox forwarding https://www.w3.org/TR/activitypub/#inbox-forwarding
-    let _type = v.get("type").ok_or("No type found")?;
-    if _type == "Create" {
-        let object = v.get("object").ok_or("No object found")?;
-        let _type = object.get("type").ok_or("No object type found")?;
-        if _type == "Note" {
-            let content = object.get("content").ok_or("No content found")?.as_str().ok_or("Not a string")?;
-            // clean content 
-            // let in_reply_to = match object.get("inReplyTo") {
-            //     Some(v) => Some(v.as_str().ok_or("Not a string")?), // TODO -- get reply from database
-                // None => None
-            // };
-            let remote_creator = object.get("attributedTo").ok_or("No attributedTo found")?.as_str().ok_or("Not a string")?;
-            let remote_url = object.get("url").ok_or("No url Found")?.as_str().ok_or("Not a string")?;
-            let remote_id = object.get("id").ok_or("No ID found")?.as_str().ok_or("Not a string")?;
-            let new_remote_note = RemoteNoteInput {
-            content: content,
-            in_reply_to: None,
-           neighborhood: true,
-           is_remote: true,
-           user_id: -1, // for remote. placeholder. not sure what to do with this ultimately
-           remote_creator: remote_creator,
-            remote_id: remote_id,
-            remote_url: remote_url } ;
-            println!("{:?}", new_remote_note);
-        }
-    }
-    debug!("Unrecognized or invalid activity");
-    Ok(())
+    let object = v.get("object").ok_or("No object found")?;
+    let _type = object.get("type").ok_or("No object type found")?;
+    let content = object.get("content").ok_or("No content found")?.as_str().ok_or("Not a string")?;
+    // clean content 
+    // let in_reply_to = match object.get("inReplyTo") {
+    //     Some(v) => Some(v.as_str().ok_or("Not a string")?), // TODO -- get reply from database
+        // None => None
+    // };
+    let remote_creator = object.get("attributedTo").ok_or("No attributedTo found")?.as_str().ok_or("Not a string")?;
+    let remote_url = object.get("url").ok_or("No url Found")?.as_str().ok_or("Not a string")?;
+    let remote_id = object.get("id").ok_or("No ID found")?.as_str().ok_or("Not a string")?;
+    let new_remote_note = RemoteNoteInput {
+    content: String::from(content),
+    in_reply_to: None,
+    neighborhood: true,
+    is_remote: true,
+    user_id: -1, // for remote. placeholder. not sure what to do with this ultimately
+    remote_creator: String::from(remote_creator),
+    remote_id: String::from(remote_id),
+    remote_url: String::from(remote_url) } ;
+    println!("{:?}", new_remote_note);
+    return Ok(new_remote_note);
 }
 
-fn new_note_to_ap_message() {
+
+/// Generate an AP create message from a new note
+fn new_note_to_ap_message(note_input: NoteInput) {
 }
 
 // /// used to send to others
@@ -63,12 +69,12 @@ mod tests {
     use super::*;
     #[test]
     fn test_empty_string() {
-        process_unstructured_ap("{}");
+        // to write
     }
 
     #[test]
     fn test_mastodon_create_status_example() {
-        let mastodon_create_note_json_string = r#"{
+        let create_note_mastodon = serde_json::from_str(r#"{
               "id": "https://mastodon.social/users/alexwennerberg/statuses/104028309437021899/activity",
               "type": "Create",
               "actor": "https://mastodon.social/users/alexwennerberg",
@@ -97,7 +103,7 @@ mod tests {
                 "atomUri": "https://mastodon.social/users/alexwennerberg/statuses/104028309437021899",
                 "inReplyToAtomUri": null,
                 "conversation": "tag:mastodon.social,2020-04-20:objectId=167583625:objectType=Conversation",
-                "content": "<p>&lt;a href=&quot;<a href=\"https://google.com\" rel=\"nofollow noopener noreferrer\" target=\"_blank\"><span class=\"invisible\">https://</span><span class=\"\">google.com</span><span class=\"invisible\"></span></a>&quot;&gt;hi&lt;/a&gt;</p>",
+                "content": "hello world",
                 "contentMap": {
                   "en": "<p>&lt;a href=&quot;<a href=\"https://google.com\" rel=\"nofollow noopener noreferrer\" target=\"_blank\"><span class=\"invisible\">https://</span><span class=\"\">google.com</span><span class=\"invisible\"></span></a>&quot;&gt;hi&lt;/a&gt;</p>"
                 },
@@ -114,13 +120,25 @@ mod tests {
                   }
                 }
               }
-            }"#;
-        process_unstructured_ap(mastodon_create_note_json_string);
+            }"#).unwrap();
+        assert_eq!(parse_create_note(create_note_mastodon).unwrap(), RemoteNoteInput {
+            content: String::from("hello world"),
+        in_reply_to: None,
+        neighborhood: true,
+        is_remote: true,
+        user_id: -1, // for remote. placeholder. not sure what to do with this ultimately
+        remote_creator: String::from("https://mastodon.social/users/alexwennerberg"),
+        remote_id: String::from("https://mastodon.social/users/alexwennerberg/statuses/104028309437021899"),
+        remote_url: String::from("https://mastodon.social/@alexwennerberg/104028309437021899"),
+        })
     }
 }
 
 pub fn post_inbox(message: Value) {
-    process_unstructured_ap(message);
+    // TODO check if it is a create note message
+    parse_create_note(message);
+    // insert new note into database
+    // thtas it!
 }
 
 pub fn get_outbox() {}

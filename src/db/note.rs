@@ -54,17 +54,17 @@ pub struct NoteInput<'a> {
   pub neighborhood: bool,
 }
 
-#[derive(Insertable, Clone, Debug)]
+#[derive(Insertable, Eq, PartialEq, Clone, Debug)]
 #[table_name = "notes"]
-pub struct RemoteNoteInput<'a> {
+pub struct RemoteNoteInput{
     pub user_id: i32,
-    pub content: &'a str, 
+    pub content: String,
     pub in_reply_to: Option<i32>,
     pub neighborhood: bool,
     pub is_remote: bool,
-    pub remote_creator: &'a str,
-    pub remote_url: &'a str,
-    pub remote_id: &'a str,
+    pub remote_creator: String, 
+    pub remote_url:  String,
+    pub remote_id: String,
 }
 
 /// We render the first >>[num] or note emoji as a reply, for threading.

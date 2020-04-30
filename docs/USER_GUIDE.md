@@ -6,7 +6,7 @@ You will get a notification when someone tags your username in a post or if they
 
 ## Creating a note
 
-Enter your text in the note box, then click create note. The first post that you tag (via 📝X or >>X, where X is the post number) will be considered a post you're replying to. For the purposes of threading, you cannot reply to multiple notes. #TODO implement
+Enter your text in the note box, then click create note. The first post that you tag (via 📝X or >>X, where X is the post number) will be considered a post(s) you're replying to.  #TODO implement
 
 For every local post or user that you tag in a note, that post / user's owner will receive a notification.
 
