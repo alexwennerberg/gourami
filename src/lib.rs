@@ -17,39 +17,20 @@ use warp::hyper::Body;
 use hyper;
 use askama::Template;
 use db::note::{NoteInput, Note};
+use db::conn::POOL;
 use db::note;
 use db::user::{RegistrationKey, User, NewUser};
 use db::notification::{NewNotification, NewNotificationViewer, Notification, NotificationViewer};
 use diesel::prelude::*;
-use diesel::sqlite::SqliteConnection;
 use diesel::insert_into;
 use serde::{Deserialize};
 use session::{Session};
-use diesel::r2d2::{ConnectionManager, Pool};
 
-type SqlitePool = Pool<ConnectionManager<SqliteConnection>>;
 
 mod db;
 mod session;
 mod ap;
 pub mod routes;
-
-
-// We use a global shared sqlite connection because it's simple and performance is not 
-// very important
-
-fn pooled_sqlite() -> SqlitePool {
-    let manager = ConnectionManager::<SqliteConnection>::new(std::env::var("DATABASE_URL").unwrap());
-    Pool::new(manager).expect("Postgres connection pool could not be created")
-}
-
-
-lazy_static! {
-    static ref POOL: SqlitePool = pooled_sqlite();
-}
-
-// fn POOL.get().unwrap() -> diesel::SqliteConnection {
-//     return *POOL.get().unwrap();
 
 
 struct Global<'a> { // variables used on all pages w header
@@ -137,22 +118,18 @@ struct NewNoteRequest {
 async fn handle_new_note_form(u: Option<User>, f: NewNoteRequest) -> Result<impl Reply, Rejection> {
     match u {
     Some(u) => {
-        let n = new_note(u, &f.note_input, f.neighborhood.is_some()).unwrap();
-        send_note(&n).await.unwrap(); // TODO error handling
+        let n = new_note(&u, &f.note_input, f.neighborhood.is_some()).unwrap();
+        if n.neighborhood {
+            let nj = ap::new_note_to_ap_message(&n, &u);
+            let destinations = ap::get_destinations();
+            ap::send_ap_message(&nj, destinations).await.unwrap(); // TODO error handling
+        }
         let red_url: http::Uri = f.redirect_url.parse().unwrap();
         Ok(redirect(red_url))},
     None => Ok(redirect(http::Uri::from_static("error")))}
 }
 
-async fn send_note(note: &NoteInput) -> Result<(), reqwest::Error> {
-    let nj = ap::new_note_to_ap_message(note);
-    let client = reqwest::Client::new();
-    client.post("http://localhost:3030/inbox.json")
-        .json(&nj)
-        .send().await?;
-    Ok(())
-}
-pub fn new_note(auth_user: User, note_input: &str, neighborhood: bool,) -> Result<NoteInput, Box<dyn std::error::Error>> {
+pub fn new_note(auth_user: &User, note_input: &str, neighborhood: bool) -> Result<NoteInput, Box<dyn std::error::Error>> {
     use db::schema::notes::dsl as notes;
     // create activitypub activity object
     // TODO -- micropub?
@@ -384,8 +361,10 @@ fn get_notes(params: GetPostsParams, neighborhood: Option<bool>) -> Result<Vec<U
         query = query.filter(u::id.eq(u_id));
     }
     match neighborhood {
-        Some(n) => query = query.filter(n::neighborhood.eq(n)),
-        None => ()
+        Some(true) => query = query.filter(n::neighborhood.eq(true)),
+        Some(false) => query = query.filter(n::is_remote.eq(false)),
+        // OR is neighborhood and reply is to a neighborhood tweet
+        None => (),
     }
     let results = query.load::<(Note, User)>(&POOL.get().unwrap()).unwrap(); // TODO get rid of unwrap
     Ok(results.into_iter().map(|a| UserNote{note: a.0, username: a.1.username}).collect())
@@ -430,7 +409,7 @@ fn render_timeline(auth_user: Option<User>, params:GetPostsParams, url_path: Ful
     // pulls a bunch of data i dont really need
     let header = Global::create(auth_user, url_path.as_str());
     // TODO -- ignore neighborhood replies
-    let notes = get_notes(params, None);
+    let notes = get_notes(params, Some(false));
     match notes {
         Ok(n) => render_template(&TimelineTemplate{
             global: header,
@@ -570,11 +549,8 @@ pub fn user_following(user_name: String) {}
 
 pub fn post_inbox(message: Value) -> impl Reply {
     // TODO check if it is a create note message
-    use db::schema::notes::dsl::*;
     let conn = &POOL.get().unwrap();
-    let mynote = ap::parse_create_note(message).unwrap();
-    insert_into(notes).values(&mynote).execute(conn).unwrap();
-    // insert new note into database
+    ap::process_create_note(conn, message).unwrap();
     // thtas it!
     Ok("ok!")
 }

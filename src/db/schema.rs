@@ -23,11 +23,12 @@ table! {
     users (id) {
         id -> Integer,
         username -> Varchar,
-        email -> Varchar,
+        email -> Nullable<Varchar>,
         bio -> Text,
         created_time -> Timestamp,
-        password -> Varchar,
+        password -> Nullable<Varchar>,
         admin -> Bool,
+        remote_url -> Nullable<Varchar>,
     }
 }
 
@@ -54,6 +55,14 @@ table! {
         notification_id -> Integer,
         user_id -> Integer,
         viewed -> Bool,
+    }
+}
+
+table! { 
+    server_mutuals (id) {
+        id -> Integer,
+        inbox_url -> Varchar,
+        outbox_url -> Nullable<Varchar>,
     }
 }
 

@@ -1,6 +1,12 @@
 
+{% if note.note.is_remote %}
+<div class="remote-note">
+{% else %}
 <div class="note">
+{% endif %}
   <div class="note-meta">
+  {% if note.note.neighborhood %}🏠{%endif%}
+  {% if note.note.is_remote %}🌎{%endif%}
   <a href="/note/{{note.note.id}}">📝{{note.note.id}}</a> {{note.note.created_time}} <a
     class="bold" href="/user/{{note.username}}">@{{note.username}}</a>
 {% if global.logged_in  %}

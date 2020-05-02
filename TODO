@@ -1,16 +1,16 @@
-CORE FEATURES 
+v0.1.0 goals: sharing with a small community
 
-Change to GPL v3 license due to dependencies
+major
+
+minor
+- better tagging / notifications
+- better session management?
+- Change to GPL v3 license due to dependencies
 
 
 Proper threading
 - Render all DESCENDENTS
 (allow for replies to multiple items...)
-
-Notifications
-- Notify on tag
-
-Replace notes with >>
 
 Federation / ActivityPub
 retryeets

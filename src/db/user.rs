@@ -1,4 +1,5 @@
 use diesel::sqlite::SqliteConnection;
+use std::env;
 use super::schema::users;
 use diesel::prelude::*;
 use serde::{Deserialize};
@@ -36,25 +37,29 @@ impl RegistrationKey {
 pub struct User {
     pub id: i32,
     pub username: String,
-    pub email: String,
+    pub email: Option<String>, // TODO option
     pub bio: String,
     pub created_time: String,
-    pub password: String, // is this OK? hashed
-    pub admin: bool, 
-}
-
-// TODO -- default "anonymous" user
+    pub password: Option<String>,
+    pub admin: bool,
+    pub remote_url: Option<String>,
+} 
 
 impl User {
+    pub fn get_url(&self) -> String {
+        format!("{}/user/{}", env::var("GOURAMI_DOMAIN").unwrap(), self.username)
+        // remote url?
+    }
     pub fn authenticate(
         conn: &SqliteConnection,
         user: &str,
         pass: &str,
     ) -> Option<Self> {
         use crate::db::schema::users::dsl::*;
+        // TODO -- allow email login as well
         let user = match users
             .filter(username.eq(user))
-            .first::<User>(conn)
+            .first::<Self>(conn)
         {
             Ok(user) => user,
             Err(e) => {
@@ -63,7 +68,12 @@ impl User {
             }
         };
 
-        match bcrypt::verify(&pass, &user.password) {
+        let u_pass = match &user.password {
+            Some(p) => p,
+            None => return None
+        };
+
+        match bcrypt::verify(&pass, &u_pass) {
             Ok(true) => Some(user),
             Ok(false) => None,
             Err(e) => {
@@ -82,6 +92,12 @@ pub struct NewUser<'a> {
     pub email: &'a str,
 }
 
+#[derive(Insertable, Deserialize)]
+#[table_name="users"]
+pub struct NewRemoteUser {
+    pub username: String,
+    pub remote_url: Option<String>,
+}
 // impl NewUser {
 
 // }

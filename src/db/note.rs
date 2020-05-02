@@ -1,3 +1,4 @@
+use std::env;
 use maplit::hashset;
 use super::schema::notes;
 use serde::{de::Error, Deserialize, Serialize, Deserializer}; 
@@ -21,6 +22,12 @@ pub struct Note { // rename RenderedNote
   pub remote_url: Option<String>,
   pub remote_creator: Option<String>,
   pub remote_id: Option<String>
+}
+
+impl Note {
+    fn get_url(&self) -> String {
+        format!("{}/note/{}", env::var("GOURAMI_DOMAIN").unwrap(), self.id)
+    }
 }
 
 /// Content in the DB is stored in plaintext (WILL BE)

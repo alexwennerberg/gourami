@@ -49,6 +49,12 @@ a:link, a:visited {
   padding: 3px;
 }
 
+.remote-note {
+  background-color: #fddcd8;
+  margin: .5em;
+  padding: 3px;
+}
+
 .notif-unread {
   background-color: #fff9e2;
   margin: .5em;
