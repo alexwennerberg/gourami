@@ -5,7 +5,6 @@ authors = ["alex wennerberg <alex@alexwennerberg.com>"]
 edition = "2018"
 
 [dependencies]
-activitystreams = "0.6.0"
 askama = "0.8.0"
 bcrypt = "0.7.0"
 cookie = "0.13.3"
