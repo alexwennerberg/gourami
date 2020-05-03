@@ -6,18 +6,28 @@
 ///
 /// This is a somewhat eccentric activitypub implementation, but it is as consistent with the spec
 /// as I can make it!
-
+use std::fs;
 use serde_json::json;
 use serde_json::{Value};
 use crate::db::note::{NoteInput, RemoteNoteInput};
 use crate::db::user::{User, NewRemoteUser};
 use crate::db::conn::POOL;
-use warp::{Reply, Filter, Rejection};
 use diesel::insert_into;
 use diesel::prelude::*;
 use diesel::sqlite::SqliteConnection;
+use std::env;
 lazy_static! {
     // const SERVER_ACTOR = "gourami.social"
+}
+
+
+// ActivityPub outbox 
+fn send_to_outbox(activity: bool) { // activitystreams object
+    // fetch/store from db.
+    // db objects need to serialize/deserialize this object
+    // if get -> fetch from db
+    // if post -> put to db, send to inbox of followers
+    // send to inbox of followers
 }
 
 enum Action {
@@ -26,6 +36,28 @@ enum Action {
     // DeleteNote
 }
 
+/// get the server user json
+fn server_actor() -> Value {
+    let domain = env::var("GOURAMI_DOMAIN").unwrap();
+    let actor = format!("{}/actor", domain);
+    let inbox = format!("{}/inbox", domain);
+    let public_key = fs::read_to_string(env::var("SIGNATURE_PUBKEY").unwrap()).unwrap();
+    json!({
+    "@context": [
+        "https://www.w3.org/ns/activitystreams",
+        "https://w3id.org/security/v1"
+    ],
+
+    "id": actor,
+    "type": "Organization", // application?
+    "preferredUsername": domain, // think about it
+    "inbox": inbox,
+    "publicKey": {
+        "id": format!("{}#main-key", actor),
+        "owner": actor,
+        "publicKeyPem": public_key
+    }})
+}
 
 fn categorize_input_message(v: Value) -> Action {
     Action::DoNothing
@@ -95,6 +127,10 @@ pub async fn send_ap_message(ap_message: &Value, destinations: Vec<String>) -> R
             .send().await?;
     }
     Ok(())
+}
+
+fn follow_remote_server(remote_url: String) {
+    // create follow request
 }
 
 fn generate_server_follow(remote_url: String) -> Value {

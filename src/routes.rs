@@ -100,15 +100,15 @@ pub async fn run_server() {
     // setup authentication
     // POST
     // TODO -- setup proper replies
-    let post_server_inbox = path!("inbox.json" )
+    let post_server_inbox = path!("inbox" )
         .and(json())
         .map(post_inbox);
 
-    let post_server_outbox = path!("outbox.json" )
+    let post_server_inbox = path!("inbox" )
         .and(json())
-        .map(post_outbox);
+        .map(post_inbox);
 
-    let get_server_outbox = path!("outbox.json" )
+    let get_server_outbox = path!("outbox" )
         .map(get_outbox);
 
     // https://github.com/seanmonstar/warp/issues/42 -- how to set up diesel

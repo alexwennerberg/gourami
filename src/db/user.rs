@@ -33,7 +33,16 @@ impl RegistrationKey {
     }
 }
 
-#[derive(Debug, Clone, Default, Queryable, Deserialize)]
+
+// a hack
+#[derive(QueryableByName)]
+#[table_name = "users"]
+pub struct Username{
+    pub username: String
+}
+
+#[derive(Debug, Clone, Default, Queryable, QueryableByName, Deserialize)]
+#[table_name = "users"]
 pub struct User {
     pub id: i32,
     pub username: String,

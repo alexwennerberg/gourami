@@ -9,8 +9,9 @@ use crate::db::user::User; // weird import
 /// This isn't queryable directly,
 /// It only works when joined with the users table
 ///
-#[derive(Queryable, Associations, Clone, Deserialize, Serialize)]
+#[derive(Queryable, Debug, QueryableByName, Associations, Clone, Deserialize, Serialize)]
 #[belongs_to(User)]
+#[table_name = "notes"]
 pub struct Note { // rename RenderedNote
   pub id: i32,
   pub user_id: i32,
@@ -81,6 +82,11 @@ pub fn get_reply(note_text: &str) -> Option<i32> {
         Some(t) => t.get(2).unwrap().as_str().parse().ok(),
         None => None
    }
+}
+
+pub fn get_mentions(note_text: &str) -> Vec<String> {
+    let re = Regex::new(r"\B(@)(\w+)").unwrap();
+    re.captures_iter(note_text).map(|c| String::from(&c[2])).collect()
 }
 
 /// used for user-input

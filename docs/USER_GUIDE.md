@@ -18,4 +18,8 @@ Gourami has a feature called the "neighbhorhood", which allows one Gourami serve
 
 The Neighbhorhood timeline consists of all other [ActivityPub](http://activitypub.rocks/) services. If you're not familiar with ActivityPub, it's a shared language that allows different social media applications to communicate with each other. This means that two services that both implement ActivityPub (such as Gourami and [Mastodon](https://joinmastodon.org/) should be able to communicate with each other. In practice, there may be differences between each individual ActivityPub services, 
 
+A note on permissions --
+
+While local-only posts are private, a neighborhood post WILL be sent to other servers. Only add servers to your neighborhood that you trust! 
+
 todo -- explain more
