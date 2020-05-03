@@ -1,12 +1,11 @@
 use crate::*;
 use db::user::User;
+use diesel::sqlite::SqliteConnection;
 use log::{debug, error};
+use rand::distributions::Alphanumeric;
 use rand::thread_rng;
 use rand::Rng;
-use rand::distributions::Alphanumeric;
-use diesel::sqlite::SqliteConnection;
 use warp::filters::{cookie, BoxedFilter};
-
 
 #[derive(Queryable)]
 pub struct Session {
@@ -17,7 +16,7 @@ pub struct Session {
     created_time: String,
 }
 
-// TODO -- figure out if database pooling is strictly necessary for security 
+// TODO -- figure out if database pooling is strictly necessary for security
 
 impl Session {
     /// Attempt to authenticate a user for this session.
@@ -47,40 +46,37 @@ impl Session {
         if let Some(sessionkey) = sess {
             use db::schema::sessions::dsl as s;
             use db::schema::users::dsl as u;
-            let result  = u::users
-                    .inner_join(s::sessions)
-                    .filter(s::cookie.eq(sessionkey))
-                    .first::<(User,Session)>(&POOL.get().unwrap())
-                        .ok();
+            let result = u::users
+                .inner_join(s::sessions)
+                .filter(s::cookie.eq(sessionkey))
+                .first::<(User, Session)>(&POOL.get().unwrap())
+                .ok();
             match result {
                 Some(r) => Some(r.0),
-                None => None
+                None => None,
             }
-        }
-        else {
+        } else {
             // so we don't have to query db when key isnt present
             None
         }
-
     }
 }
 
 pub fn create_session_filter(optional: bool) -> BoxedFilter<(Option<User>,)> {
     if optional {
         cookie::optional("EXAUTH")
-        .map(move |key: Option<String>| {Session::from_key(key)})
-        .boxed()
+            .map(move |key: Option<String>| Session::from_key(key))
+            .boxed()
     } else {
         cookie::cookie("EXAUTH")
-        .and_then(|key: String| async move {
-            let s = Session::from_key(Some(key));
-            if s.is_none() {
-                Err(warp::reject::reject()) // todo -- add custom rejection
-            }
-            else {
-                Ok(Some(s.unwrap()))
-            }
+            .and_then(|key: String| async move {
+                let s = Session::from_key(Some(key));
+                if s.is_none() {
+                    Err(warp::reject::reject()) // todo -- add custom rejection
+                } else {
+                    Ok(Some(s.unwrap()))
+                }
             })
-        .boxed()
+            .boxed()
     }
 }

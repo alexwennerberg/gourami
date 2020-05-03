@@ -1,7 +1,7 @@
-use crate::*;
 use crate::session;
+use crate::*;
 use env_logger;
-use warp::{filters::cookie, path, body::json, body::form, filters::query::query};
+use warp::{body::form, body::json, filters::cookie, filters::query::query, path};
 
 // I had trouble decoupling routes from server -- couldnt figure out the return type
 pub async fn run_server() {
@@ -30,8 +30,8 @@ pub async fn run_server() {
         .and(path::full())
         .map(user_page);
 
-    let user_edit_page  = private_session_filter()
-        .and(path!("user" / String / "edit" ))
+    let user_edit_page = private_session_filter()
+        .and(path!("user" / String / "edit"))
         .map(render_user_edit_page);
 
     let edit_user = private_session_filter()
@@ -48,31 +48,19 @@ pub async fn run_server() {
         .and(path("notifications"))
         .map(render_notifications);
 
-    let server_info_page = session_filter()
-        .and(path("server"))
-        .map(server_info_page);
+    let server_info_page = session_filter().and(path("server")).map(server_info_page);
 
     // auth functions
-    let register_page = path("register")
-        .and(query())
-        .map(register_page);
+    let register_page = path("register").and(query()).map(register_page);
 
-    let do_register = path("register")
-        .and(form())
-        .and(query())
-        .map(do_register);
+    let do_register = path("register").and(form()).and(query()).map(do_register);
 
-    let login_page = path("login")
-        .map(|| login_page());
+    let login_page = path("login").map(|| login_page());
 
     // TODO redirect these login pages
-    let do_login = path("login")
-        .and(form())
-        .map(do_login);
+    let do_login = path("login").and(form()).map(do_login);
 
-    let do_logout = path("logout")
-        .and(cookie::cookie("EXAUTH"))
-        .map(do_logout);
+    let do_logout = path("logout").and(cookie::cookie("EXAUTH")).map(do_logout);
 
     // CRUD actions
     let create_note = path("create_note")
@@ -81,70 +69,77 @@ pub async fn run_server() {
         // Verbose -- see if you can refactor
         .and_then(handle_new_note_form);
 
-    let delete_note = path("delete_note")
-        .and(session_filter())
-        .and(form())
-        .map(|u: Option<User>, f: DeleteNoteRequest | match u {
+    let delete_note = path("delete_note").and(session_filter()).and(form()).map(
+        |u: Option<User>, f: DeleteNoteRequest| match u {
             Some(u) => {
                 delete_note(f.note_id).unwrap(); // TODO fix unwrap
                 let red_url: http::Uri = f.redirect_url.parse().unwrap();
-                redirect(red_url)},
-            None => redirect(http::Uri::from_static("error"))});
+                redirect(red_url)
+            }
+            None => redirect(http::Uri::from_static("error")),
+        },
+    );
 
-
-    let static_files = warp::path("static")
-        .and(warp::fs::dir("./static"));
+    let static_files = warp::path("static").and(warp::fs::dir("./static"));
 
     // activityPub stuff
     // This stuff should filter based on the application headers
     // setup authentication
     // POST
     // TODO -- setup proper replies
-    let post_server_inbox = path!("inbox" )
-        .and(json())
-        .map(post_inbox);
+    let post_server_inbox = path!("inbox").and(json()).map(post_inbox);
 
-    let post_server_inbox = path!("inbox" )
-        .and(json())
-        .map(post_inbox);
+    let post_server_inbox = path!("inbox").and(json()).map(post_inbox);
 
-    let get_server_outbox = path!("outbox" )
-        .map(get_outbox);
+    let get_server_outbox = path!("outbox").map(get_outbox);
 
     // https://github.com/seanmonstar/warp/issues/42 -- how to set up diesel
-    // TODO set content length limit 
+    // TODO set content length limit
     // TODO redirect via redirect in request
     // TODO secure against xss
-        // used for api based authentication
+    // used for api based authentication
     // let api_filter = session::create_session_filter(&POOL.get());
-    let html_renders = home.or(login_page).or(register_page).or(user_page).or(note_page).or(server_info_page).or(notification_page).or(user_edit_page).or(neighborhood);
-    let forms = do_register.or(do_login).or(do_logout).or(create_note).or(delete_note).or(edit_user);
+    let html_renders = home
+        .or(login_page)
+        .or(register_page)
+        .or(user_page)
+        .or(note_page)
+        .or(server_info_page)
+        .or(notification_page)
+        .or(user_edit_page)
+        .or(neighborhood);
+    let forms = do_register
+        .or(do_login)
+        .or(do_logout)
+        .or(create_note)
+        .or(delete_note)
+        .or(edit_user);
     let api_post = post_server_inbox;
     // let api
     // catch all for any other paths
 
-    let routes = warp::get().and(html_renders)
-        .or(
-            warp::post()
+    let routes = warp::get()
+        .and(html_renders)
+        .or(warp::post()
             .and(warp::body::content_length_limit(1024 * 32))
             .and(forms))
-        .or(
-            warp::post()
+        .or(warp::post()
             .and(warp::body::content_length_limit(1024 * 64))
-            .and(api_post)
-        )
+            .and(api_post))
         .or(static_files)
         .with(warp::log("server"))
         .recover(handle_rejection)
         .boxed();
     env_logger::init();
     match std::env::var("GOURAMI_ENV").unwrap().as_str() {
-    "PROD" => warp::serve(routes)
-        .tls()
-        .cert_path(&std::env::var("CERT_PATH").unwrap())
-        .key_path(&std::env::var("KEY_PATH").unwrap())
-        .run(([0, 0, 0, 0], 443))
-        .await ,
-    _ => warp::serve(routes).run(([127,0,0,1], 3030)).await
+        "PROD" => {
+            warp::serve(routes)
+                .tls()
+                .cert_path(&std::env::var("CERT_PATH").unwrap())
+                .key_path(&std::env::var("KEY_PATH").unwrap())
+                .run(([0, 0, 0, 0], 443))
+                .await
+        }
+        _ => warp::serve(routes).run(([127, 0, 0, 1], 3030)).await,
     }
 }

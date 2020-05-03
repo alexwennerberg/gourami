@@ -58,7 +58,7 @@ table! {
     }
 }
 
-table! { 
+table! {
     server_mutuals (id) {
         id -> Integer,
         inbox_url -> Varchar,

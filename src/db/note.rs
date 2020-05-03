@@ -1,10 +1,10 @@
-use std::env;
-use maplit::hashset;
 use super::schema::notes;
-use serde::{de::Error, Deserialize, Serialize, Deserializer}; 
-use regex::Regex;
+use crate::db::user::User;
 use ammonia;
-use crate::db::user::User; // weird import
+use maplit::hashset;
+use regex::Regex;
+use serde::{de::Error, Deserialize, Deserializer, Serialize};
+use std::env; // weird import
 
 /// This isn't queryable directly,
 /// It only works when joined with the users table
@@ -12,17 +12,18 @@ use crate::db::user::User; // weird import
 #[derive(Queryable, Debug, QueryableByName, Associations, Clone, Deserialize, Serialize)]
 #[belongs_to(User)]
 #[table_name = "notes"]
-pub struct Note { // rename RenderedNote
-  pub id: i32,
-  pub user_id: i32,
-  pub in_reply_to: Option<i32>,
-  pub content: String,
-  pub created_time: String,
-  pub neighborhood: bool,
-  pub is_remote: bool,
-  pub remote_url: Option<String>,
-  pub remote_creator: Option<String>,
-  pub remote_id: Option<String>
+pub struct Note {
+    // rename RenderedNote
+    pub id: i32,
+    pub user_id: i32,
+    pub in_reply_to: Option<i32>,
+    pub content: String,
+    pub created_time: String,
+    pub neighborhood: bool,
+    pub is_remote: bool,
+    pub remote_url: Option<String>,
+    pub remote_creator: Option<String>,
+    pub remote_id: Option<String>,
 }
 
 impl Note {
@@ -33,7 +34,7 @@ impl Note {
 
 /// Content in the DB is stored in plaintext (WILL BE)
 /// We want to render it so that it is rendered in HTML
-/// This basically just means escaping characters and adding 
+/// This basically just means escaping characters and adding
 /// automatic URL parsing
 ///
 
@@ -49,29 +50,29 @@ fn remove_unnacceptable_html(input_text: &str) -> String {
         .tags(ok_tags)
         .clean(input_text)
         .to_string();
-    return html_clean
+    return html_clean;
 }
 
 #[derive(Insertable, Clone, Debug)]
 #[table_name = "notes"]
 pub struct NoteInput {
-  //pub id: i32, //unsigned?
-  pub user_id: i32,
-  pub content: String,
-  pub in_reply_to: Option<i32>,
-  pub neighborhood: bool,
+    //pub id: i32, //unsigned?
+    pub user_id: i32,
+    pub content: String,
+    pub in_reply_to: Option<i32>,
+    pub neighborhood: bool,
 }
 
 #[derive(Insertable, Eq, PartialEq, Clone, Debug)]
 #[table_name = "notes"]
-pub struct RemoteNoteInput{
+pub struct RemoteNoteInput {
     pub user_id: i32,
     pub content: String,
     pub in_reply_to: Option<i32>,
     pub neighborhood: bool,
     pub is_remote: bool,
-    pub remote_creator: String, 
-    pub remote_url:  String,
+    pub remote_creator: String,
+    pub remote_url: String,
     pub remote_id: String,
 }
 
@@ -80,13 +81,15 @@ pub fn get_reply(note_text: &str) -> Option<i32> {
     let re = Regex::new(r"\B(📝|>>)(\d+)").unwrap();
     match re.captures(note_text) {
         Some(t) => t.get(2).unwrap().as_str().parse().ok(),
-        None => None
-   }
+        None => None,
+    }
 }
 
 pub fn get_mentions(note_text: &str) -> Vec<String> {
     let re = Regex::new(r"\B(@)(\w+)").unwrap();
-    re.captures_iter(note_text).map(|c| String::from(&c[2])).collect()
+    re.captures_iter(note_text)
+        .map(|c| String::from(&c[2]))
+        .collect()
 }
 
 /// used for user-input
@@ -107,16 +110,19 @@ pub fn parse_note_text(text: &str) -> String {
     )
     .unwrap();
     let replace_str = "<a href=\"$0\">$0</a>";
-    let urls_parsed = re.replace_all(&html_clean, &replace_str as &str).to_string();
-	let note_regex = Regex::new(
-		r"\B(📝|&gt;&gt;)(\d+)",
-	).unwrap();
-	let replace_str = "<a href=\"/note/$2\">$0</a>";
-	let notes_parsed = note_regex.replace_all(&urls_parsed, &replace_str as &str).to_string();
-    let person_regex = Regex::new(
-		r"\B(@)(\w+)").unwrap();
-	let replace_str = "<a href=\"/user/$2\">$0</a>";
-	let people_parsed = person_regex.replace_all(&notes_parsed, &replace_str as &str).to_string();
+    let urls_parsed = re
+        .replace_all(&html_clean, &replace_str as &str)
+        .to_string();
+    let note_regex = Regex::new(r"\B(📝|&gt;&gt;)(\d+)").unwrap();
+    let replace_str = "<a href=\"/note/$2\">$0</a>";
+    let notes_parsed = note_regex
+        .replace_all(&urls_parsed, &replace_str as &str)
+        .to_string();
+    let person_regex = Regex::new(r"\B(@)(\w+)").unwrap();
+    let replace_str = "<a href=\"/user/$2\">$0</a>";
+    let people_parsed = person_regex
+        .replace_all(&notes_parsed, &replace_str as &str)
+        .to_string();
     // TODO get mentions too
     return people_parsed;
 }
@@ -143,9 +149,11 @@ mod tests {
     }
 
     #[test]
-    fn test_string_with_http_urls() { // TODO fix test
+    fn test_string_with_http_urls() {
+        // TODO fix test
         let src = "Check this out: https://doc.rust-lang.org";
-        let linked = "Check this out: <a href=\"https://doc.rust-lang.org\">https://doc.rust-lang.org</a>";
+        let linked =
+            "Check this out: <a href=\"https://doc.rust-lang.org\">https://doc.rust-lang.org</a>";
         assert!(parse_note_text(src) == linked)
     }
 
@@ -168,7 +176,8 @@ mod tests {
     #[test]
     fn test_note_replace() {
         let src = "📝123 cool post >>456";
-        let linked = "<a href=\"/note/123\">📝123</a> cool post <a href=\"/note/456\">&gt;&gt;456</a>";
+        let linked =
+            "<a href=\"/note/123\">📝123</a> cool post <a href=\"/note/456\">&gt;&gt;456</a>";
         assert!(parse_note_text(src) == linked)
     }
 

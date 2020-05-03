@@ -1,48 +1,49 @@
 #[macro_use]
 extern crate diesel;
-#[macro_use] extern crate log;
-#[macro_use] extern crate lazy_static;
-#[macro_use] extern crate maplit;
+#[macro_use]
+extern crate log;
+#[macro_use]
+extern crate lazy_static;
+#[macro_use]
+extern crate maplit;
 
-use serde_json::{Value};
+use serde_json::Value;
 use std::convert::Infallible;
 use zxcvbn::zxcvbn;
 
-use warp::{reject::Reject, Reply, Filter, Rejection};
-use warp::{redirect::redirect};
 use warp::filters::path::FullPath;
 use warp::http;
 use warp::hyper::Body;
+use warp::redirect::redirect;
+use warp::{reject::Reject, Filter, Rejection, Reply};
 
-use hyper;
 use askama::Template;
-use db::note::{NoteInput, Note};
 use db::conn::POOL;
 use db::note;
-use db::user::{RegistrationKey, User, NewUser, Username};
+use db::note::{Note, NoteInput};
 use db::notification::{NewNotification, NewNotificationViewer, Notification, NotificationViewer};
-use diesel::prelude::*;
+use db::user::{NewUser, RegistrationKey, User, Username};
 use diesel::insert_into;
-use serde::{Deserialize};
-use session::{Session};
+use diesel::prelude::*;
+use hyper;
+use serde::Deserialize;
+use session::Session;
 
-
-mod db;
-mod session;
 mod ap;
+mod db;
 pub mod routes;
-
+mod session;
 
 #[derive(Template)]
-#[template(path = "user.html")] 
-struct UserTemplate<'a>{
+#[template(path = "user.html")]
+struct UserTemplate<'a> {
     global: Global<'a>,
     notes: Vec<UserNote>,
     user: User,
-} 
+}
 
 #[derive(Template)]
-#[template(path = "note.html")] 
+#[template(path = "note.html")]
 struct NoteTemplate<'a> {
     global: Global<'a>,
     note_thread: Vec<UserNote>,
@@ -50,51 +51,51 @@ struct NoteTemplate<'a> {
 }
 
 #[derive(Template)]
-#[template(path = "error.html")] 
+#[template(path = "error.html")]
 struct ErrorTemplate<'a> {
     global: Global<'a>,
-    error_message: &'a str
+    error_message: &'a str,
 }
 
 #[derive(Template)]
-#[template(path = "edit_user.html")] 
+#[template(path = "edit_user.html")]
 struct UserEditTemplate<'a> {
     global: Global<'a>,
     user: User,
 }
 
 #[derive(Template)]
-#[template(path = "neighborhood.html")] 
-struct NeighborhoodTemplate<'a>{
+#[template(path = "neighborhood.html")]
+struct NeighborhoodTemplate<'a> {
     global: Global<'a>,
     notes: Vec<UserNote>,
 } // TODO reconsider structure
 
 // TODO split into separate templates. not sure how
 #[derive(Template)]
-#[template(path = "timeline.html")] 
-struct TimelineTemplate<'a>{
+#[template(path = "timeline.html")]
+struct TimelineTemplate<'a> {
     global: Global<'a>,
     notes: Vec<UserNote>,
-} 
+}
 
 #[derive(Template)]
-#[template(path = "notifications.html")] 
-struct NotificationTemplate<'a>{
+#[template(path = "notifications.html")]
+struct NotificationTemplate<'a> {
     notifs: Vec<RenderedNotif>, // required for redirects.
     global: Global<'a>,
-} 
+}
 
 #[derive(Template)]
-#[template(path = "login.html")] 
-struct LoginTemplate<'a>{
+#[template(path = "login.html")]
+struct LoginTemplate<'a> {
     login_failed: bool, // required for redirects.
     global: Global<'a>,
-} 
+}
 
 #[derive(Template)]
-#[template(path = "register.html")] 
-struct RegisterTemplate<'a>{
+#[template(path = "register.html")]
+struct RegisterTemplate<'a> {
     keyed: bool,
     key: &'a str,
     global: Global<'a>,
@@ -106,7 +107,8 @@ struct ServerInfoTemplate<'a> {
     global: Global<'a>,
 }
 
-struct Global<'a> { // variables used on all pages w header
+struct Global<'a> {
+    // variables used on all pages w header
     title: &'a str,
     page: &'a str,
     page_title: &'a str,
@@ -119,26 +121,28 @@ impl<'a> Global<'a> {
     fn create(user: Option<User>, page: &'a str) -> Self {
         use db::schema::notification_viewers::dsl::*;
         use diesel::dsl::count;
-        match user { 
-        Some(u) => {
-            let conn = POOL.get().unwrap();
-            let unread: i64 = notification_viewers
-                .select(count(user_id))
-                .filter(user_id.eq(u.id))
-                .filter(viewed.eq(false))
-                .first(&conn).unwrap();
-            Self {
-            me: u,
-            page: page, // remove leading slash
-            page_title: &page[1..], // remove leading slash
-            logged_in: true,
-            unread_notifications: unread,
-            ..Default::default()
-        }},
-        None => Self {
-            page: page,
-            ..Default::default()
-        }
+        match user {
+            Some(u) => {
+                let conn = POOL.get().unwrap();
+                let unread: i64 = notification_viewers
+                    .select(count(user_id))
+                    .filter(user_id.eq(u.id))
+                    .filter(viewed.eq(false))
+                    .first(&conn)
+                    .unwrap();
+                Self {
+                    me: u,
+                    page: page,             // remove leading slash
+                    page_title: &page[1..], // remove leading slash
+                    logged_in: true,
+                    unread_notifications: unread,
+                    ..Default::default()
+                }
+            }
+            None => Self {
+                page: page,
+                ..Default::default()
+            },
         }
     }
 }
@@ -172,10 +176,10 @@ pub fn render_template<T: askama::Template>(t: &T) -> http::Response<hyper::body
 #[derive(Deserialize)]
 struct DeleteNoteRequest {
     note_id: i32, // has to be String
-    redirect_url: String
+    redirect_url: String,
 }
 
-fn delete_note(note_id: i32)-> Result<(), Box<dyn std::error::Error>> {
+fn delete_note(note_id: i32) -> Result<(), Box<dyn std::error::Error>> {
     use db::schema::notes::dsl::*;
     diesel::delete(notes.filter(id.eq(note_id))).execute(&POOL.get()?)?;
     Ok(())
@@ -190,23 +194,29 @@ struct NewNoteRequest {
 
 async fn handle_new_note_form(u: Option<User>, f: NewNoteRequest) -> Result<impl Reply, Rejection> {
     match u {
-    Some(u) => {
-        let n = new_note(&u, &f.note_input, f.neighborhood.is_some()).unwrap();
-        if n.neighborhood {
-            let nj = ap::new_note_to_ap_message(&n, &u);
-            let destinations = ap::get_destinations();
-            ap::send_ap_message(&nj, destinations).await.unwrap(); // TODO error handling
+        Some(u) => {
+            let n = new_note(&u, &f.note_input, f.neighborhood.is_some()).unwrap();
+            if n.neighborhood {
+                let nj = ap::new_note_to_ap_message(&n, &u);
+                let destinations = ap::get_destinations();
+                ap::send_ap_message(&nj, destinations).await.unwrap(); // TODO error handling
+            }
+            let red_url: http::Uri = f.redirect_url.parse().unwrap();
+            Ok(redirect(red_url))
         }
-        let red_url: http::Uri = f.redirect_url.parse().unwrap();
-        Ok(redirect(red_url))},
-    None => Ok(redirect(http::Uri::from_static("error")))}
+        None => Ok(redirect(http::Uri::from_static("error"))),
+    }
 }
 
-pub fn new_note(auth_user: &User, note_input: &str, neighborhood: bool) -> Result<NoteInput, Box<dyn std::error::Error>> {
+pub fn new_note(
+    auth_user: &User,
+    note_input: &str,
+    neighborhood: bool,
+) -> Result<NoteInput, Box<dyn std::error::Error>> {
     use db::schema::notes::dsl as notes;
-    use db::schema::users::dsl as u;
-    use db::schema::notifications::dsl as notifs;
     use db::schema::notification_viewers::dsl as nv;
+    use db::schema::notifications::dsl as notifs;
+    use db::schema::users::dsl as u;
     // create activitypub activity object
     // TODO -- micropub?
     // if its in reply to something
@@ -214,27 +224,33 @@ pub fn new_note(auth_user: &User, note_input: &str, neighborhood: bool) -> Resul
     let reply = note::get_reply(note_input);
     let mentions = note::get_mentions(note_input);
     let parsed_note_text = note::parse_note_text(note_input);
-    let new_note = NoteInput{
+    let new_note = NoteInput {
         user_id: auth_user.id,
         in_reply_to: reply,
         content: parsed_note_text,
-        neighborhood: neighborhood
+        neighborhood: neighborhood,
     };
     // TODO fix potential multithreading issue
     insert_into(notes::notes).values(&new_note).execute(conn)?;
     let note_id: i32 = notes::notes
         .order(notes::id.desc())
         .select(notes::id)
-        .first(conn).unwrap();
+        .first(conn)
+        .unwrap();
     // notify person u reply to
     if mentions.len() > 0 {
-        let message = format!("@{} mentioned you in a note 📝{}", auth_user.username, note_id);
+        let message = format!(
+            "@{} mentioned you in a note 📝{}",
+            auth_user.username, note_id
+        );
         let new_notification = NewNotification {
-        // reusing the same parser for now. rename maybe
+            // reusing the same parser for now. rename maybe
             notification_html: note::parse_note_text(&message),
-            server_message: false
+            server_message: false,
         };
-        insert_into(notifs::notifications).values(new_notification).execute(conn)?;
+        insert_into(notifs::notifications)
+            .values(new_notification)
+            .execute(conn)?;
         for mention in mentions {
             // create reply notification
             // I thinks this may work but worry about multithreading
@@ -242,21 +258,24 @@ pub fn new_note(auth_user: &User, note_input: &str, neighborhood: bool) -> Resul
                 .select(u::id)
                 .filter(u::username.eq(mention))
                 .first(conn)
-                .ok(); // TODO 
+                .ok(); // TODO
             if let Some(u_id) = user_id {
                 let notif_id = notifs::notifications
                     .order(notifs::id.desc())
                     .select(notifs::id)
-                    .first(conn).unwrap();
+                    .first(conn)
+                    .unwrap();
                 let new_nv = NewNotificationViewer {
-                       notification_id: notif_id,
-                       user_id: u_id,
-                       viewed: false
-                    };
-                insert_into(nv::notification_viewers).values(new_nv).execute(conn).ok(); // work with conn failures
+                    notification_id: notif_id,
+                    user_id: u_id,
+                    viewed: false,
+                };
+                insert_into(nv::notification_viewers)
+                    .values(new_nv)
+                    .execute(conn)
+                    .ok(); // work with conn failures
             }
         }
-
     }
     // generate activitypub object from post request
     // send to outbox
@@ -277,13 +296,19 @@ fn register_page(query_params: QueryParams) -> impl warp::Reply {
     if let Some(k) = query_params.key {
         key_str = k.as_str();
         keyed = RegistrationKey::is_valid(&POOL.get().unwrap(), &key_str);
-        render_template(&RegisterTemplate{keyed: keyed, key: key_str, global: global})
-    }
-    else {
-        render_template(&RegisterTemplate{keyed: keyed, key: key_str, global: global})
+        render_template(&RegisterTemplate {
+            keyed: keyed,
+            key: key_str,
+            global: global,
+        })
+    } else {
+        render_template(&RegisterTemplate {
+            keyed: keyed,
+            key: key_str,
+            global: global,
+        })
     }
 }
-
 
 #[derive(Deserialize)]
 struct RegisterForm {
@@ -292,11 +317,10 @@ struct RegisterForm {
     email: String,
 }
 
-
 impl RegisterForm {
     fn validate(&self) -> Result<(), &'static str> {
         if zxcvbn(&self.password, &[]).unwrap().score() < 1 {
-            return Err("Please come up with a more secure password.")
+            return Err("Please come up with a more secure password.");
         }
         Ok(())
     }
@@ -306,8 +330,12 @@ impl RegisterForm {
 fn do_register(form: RegisterForm, query_params: serde_json::Value) -> impl Reply {
     let conn = &POOL.get().unwrap();
     use db::schema::users::dsl::*;
-    if form.validate().is_err(){ // TODO catch better
-        return do_login(LoginForm{username: form.username, password: form.password})
+    if form.validate().is_err() {
+        // TODO catch better
+        return do_login(LoginForm {
+            username: form.username,
+            password: form.password,
+        });
     }
     if let Some(k) = query_params.get("key") {
         let k_string = &k.as_str().unwrap();
@@ -315,17 +343,22 @@ fn do_register(form: RegisterForm, query_params: serde_json::Value) -> impl Repl
         RegistrationKey::clear_key(conn, k_string);
         if keyed {
             let hash = bcrypt::hash(&form.password, bcrypt::DEFAULT_COST).unwrap();
-            let new_user = NewUser {username: &form.username, password: &hash, email: &form.email};
+            let new_user = NewUser {
+                username: &form.username,
+                password: &hash,
+                email: &form.email,
+            };
             // todo data validation
-            insert_into(users)
-                .values(new_user)
-                .execute(conn).unwrap();
+            insert_into(users).values(new_user).execute(conn).unwrap();
 
-        // insert into database
+            // insert into database
         }
     }
     // not good
-    do_login(LoginForm{username: form.username, password: form.password})
+    do_login(LoginForm {
+        username: form.username,
+        password: form.password,
+    })
 }
 
 #[derive(Deserialize)]
@@ -334,31 +367,50 @@ struct LoginForm {
     password: String,
 }
 
-
 fn login_page() -> impl Reply {
     // dont let you access this page if logged in
-    render_template(&LoginTemplate{login_failed: false, global: Global{page: "login", ..Default::default()}})
+    render_template(&LoginTemplate {
+        login_failed: false,
+        global: Global {
+            page: "login",
+            ..Default::default()
+        },
+    })
 }
 
 fn do_login(form: LoginForm) -> impl Reply {
-    if let Some(cookie) = Session::authenticate(&POOL.get().unwrap(), &form.username, &form.password) {
+    if let Some(cookie) =
+        Session::authenticate(&POOL.get().unwrap(), &form.username, &form.password)
+    {
         // 1 year cookie expiration
         http::Response::builder()
             .status(http::StatusCode::FOUND)
             .header(http::header::LOCATION, "/")
             .header(
                 http::header::SET_COOKIE,
-                format!("EXAUTH={}; MAX-AGE=31536000; SameSite=Strict; HttpOpnly", cookie),
-        )
-        .body(Body::empty()).unwrap()
+                format!(
+                    "EXAUTH={}; MAX-AGE=31536000; SameSite=Strict; HttpOpnly",
+                    cookie
+                ),
+            )
+            .body(Body::empty())
+            .unwrap()
     } else {
-        render_template(&LoginTemplate{login_failed: true, global:Global{page: "login", ..Default::default()}})
+        render_template(&LoginTemplate {
+            login_failed: true,
+            global: Global {
+                page: "login",
+                ..Default::default()
+            },
+        })
     }
 }
 
 fn do_logout(cookie: String) -> impl Reply {
     use db::schema::sessions::dsl::*;
-    diesel::delete(sessions.filter(cookie.eq(cookie))).execute(&POOL.get().unwrap()).unwrap();
+    diesel::delete(sessions.filter(cookie.eq(cookie)))
+        .execute(&POOL.get().unwrap())
+        .unwrap();
     redirect(warp::http::Uri::from_static("/"))
 }
 
@@ -391,28 +443,47 @@ fn get_single_note(note_id: i32) -> Option<Vec<UserNote>> {
     let conn = &POOL.get().unwrap();
     // TODO -- it isnt serializing ids right
     // Username is a hack because there are two ID columns and it doesnt work right
-    let results: Vec<(Note, Username)> = diesel::sql_query(format!(r"with recursive tc( p )
+    let results: Vec<(Note, Username)> = diesel::sql_query(format!(
+        r"with recursive tc( p )
       as ( values({})
           union select id from notes, tc
                where notes.in_reply_to = tc.p
                      )
                      select notes.*, users.username from notes 
                      join users on notes.user_id = users.id 
-                     where notes.id in tc", note_id)).load(conn).unwrap();
-    Some(results.into_iter().map(|mut a| {
-                                // the ids are swapped for some reason
-                                 UserNote{note: a.0, username: a.1.username}}).collect())
+                     where notes.id in tc",
+        note_id
+    ))
+    .load(conn)
+    .unwrap();
+    Some(
+        results
+            .into_iter()
+            .map(|mut a| {
+                // the ids are swapped for some reason
+                UserNote {
+                    note: a.0,
+                    username: a.1.username,
+                }
+            })
+            .collect(),
+    )
 }
 
 /// We have to do a join here
-fn get_notes(params: GetPostsParams, neighborhood: Option<bool>) -> Result<Vec<UserNote>, diesel::result::Error> {
+fn get_notes(
+    params: GetPostsParams,
+    neighborhood: Option<bool>,
+) -> Result<Vec<UserNote>, diesel::result::Error> {
     use db::schema::notes::dsl as n;
     use db::schema::users::dsl as u;
     const PAGE_SIZE: i64 = 250;
-    let mut query = n::notes.inner_join(u::users)
+    let mut query = n::notes
+        .inner_join(u::users)
         .order(n::id.desc())
         .limit(PAGE_SIZE)
-        .offset((params.page_num - 1) * PAGE_SIZE).into_boxed();
+        .offset((params.page_num - 1) * PAGE_SIZE)
+        .into_boxed();
     if let Some(u_id) = params.user_id {
         query = query.filter(u::id.eq(u_id));
     }
@@ -423,90 +494,133 @@ fn get_notes(params: GetPostsParams, neighborhood: Option<bool>) -> Result<Vec<U
         None => (),
     }
     let results = query.load::<(Note, User)>(&POOL.get().unwrap()).unwrap(); // TODO get rid of unwrap
-    Ok(results.into_iter().map(|a| UserNote{note: a.0, username: a.1.username}).collect())
+    Ok(results
+        .into_iter()
+        .map(|a| UserNote {
+            note: a.0,
+            username: a.1.username,
+        })
+        .collect())
 }
 
 struct RenderedNotif {
     notif: Notification,
-    viewed: bool
+    viewed: bool,
 }
 fn render_notifications(auth_user: Option<User>) -> impl Reply {
-    use db::schema::notifications::dsl as n;
     use db::schema::notification_viewers::dsl as nv;
+    use db::schema::notifications::dsl as n;
     let global = Global::create(auth_user.clone(), "/notifications");
     let conn = &POOL.get().unwrap();
     let my_id = auth_user.unwrap().id;
-    let notifs = n::notifications.inner_join(nv::notification_viewers)
+    let notifs = n::notifications
+        .inner_join(nv::notification_viewers)
         .order(n::id.desc())
         .filter(nv::user_id.eq(my_id))
         .limit(1000) // arbitrary TODO cleanup / paginate
-        .load::<(Notification, NotificationViewer)>(conn).unwrap()
+        .load::<(Notification, NotificationViewer)>(conn)
+        .unwrap()
         .into_iter()
-        .map(|(n, nv)| RenderedNotif{notif: n, viewed: nv.viewed}).collect();
+        .map(|(n, nv)| RenderedNotif {
+            notif: n,
+            viewed: nv.viewed,
+        })
+        .collect();
     // mark notifications as read
     diesel::update(
         nv::notification_viewers
-        .filter(nv::user_id.eq(my_id))
-        .filter(nv::viewed.eq(false)))
-        .set(nv::viewed.eq(true)
-    ).execute(conn).unwrap();
-    render_template(&NotificationTemplate{global: global, notifs: notifs})
+            .filter(nv::user_id.eq(my_id))
+            .filter(nv::viewed.eq(false)),
+    )
+    .set(nv::viewed.eq(true))
+    .execute(conn)
+    .unwrap();
+    render_template(&NotificationTemplate {
+        global: global,
+        notifs: notifs,
+    })
 }
 
-fn render_timeline(auth_user: Option<User>, params:GetPostsParams, url_path: FullPath) -> impl Reply {
+fn render_timeline(
+    auth_user: Option<User>,
+    params: GetPostsParams,
+    url_path: FullPath,
+) -> impl Reply {
     // no session -- anonymous
     // pulls a bunch of data i dont really need
     let header = Global::create(auth_user, url_path.as_str());
     // TODO -- ignore neighborhood replies
     let notes = get_notes(params, Some(false));
     match notes {
-        Ok(n) => render_template(&TimelineTemplate{
+        Ok(n) => render_template(&TimelineTemplate {
             global: header,
             notes: n,
         }),
-        _ => render_template(&ErrorTemplate{global: header, error_message: "Could not fetch notes", ..Default::default()})
+        _ => render_template(&ErrorTemplate {
+            global: header,
+            error_message: "Could not fetch notes",
+            ..Default::default()
+        }),
     }
-
 }
 
-fn render_neighborhood(auth_user: Option<User>, params:GetPostsParams, url_path: FullPath)  -> impl Reply{
+fn render_neighborhood(
+    auth_user: Option<User>,
+    params: GetPostsParams,
+    url_path: FullPath,
+) -> impl Reply {
     let header = Global::create(auth_user, url_path.as_str());
     let notes = get_notes(params, Some(true));
     match notes {
-    Ok(n) => render_template(&TimelineTemplate{
-        global: header,
-        notes: n,
+        Ok(n) => render_template(&TimelineTemplate {
+            global: header,
+            notes: n,
         }),
-        _ => render_template(&ErrorTemplate{global: header, error_message: "Could not fetch notes", ..Default::default()})
+        _ => render_template(&ErrorTemplate {
+            global: header,
+            error_message: "Could not fetch notes",
+            ..Default::default()
+        }),
     }
-
 }
 
-impl<'a>  Default for ErrorTemplate<'a> {
+impl<'a> Default for ErrorTemplate<'a> {
     fn default() -> Self {
         Self {
             global: Global::default(),
-            error_message: "An error occured. Please report to site admin."
+            error_message: "An error occured. Please report to site admin.",
         }
     }
 }
 
 fn server_info_page(auth_user: Option<User>) -> impl Reply {
-    render_template(&ServerInfoTemplate{global: Global::create(auth_user, "/server")})
+    render_template(&ServerInfoTemplate {
+        global: Global::create(auth_user, "/server"),
+    })
 }
 
 fn note_page(auth_user: Option<User>, note_id: i32, path: FullPath) -> impl Reply {
     let note_thread = get_single_note(note_id);
-   if let Some(n) = note_thread {
-        render_template(&NoteTemplate{global: Global::create(auth_user, path.as_str()), note_thread: n})
-    }
-    else {
-        render_template(&ErrorTemplate{global: Global::create(auth_user, path.as_str()), error_message: "Note not found"})
+    if let Some(n) = note_thread {
+        render_template(&NoteTemplate {
+            global: Global::create(auth_user, path.as_str()),
+            note_thread: n,
+        })
+    } else {
+        render_template(&ErrorTemplate {
+            global: Global::create(auth_user, path.as_str()),
+            error_message: "Note not found",
+        })
     }
 }
 
-fn user_page(auth_user: Option<User>, user_name: String, mut params: GetPostsParams, path: FullPath) -> impl Reply {
-    let header = Global::create(auth_user, path.as_str());  // maybe if i'm clever i can abstract this away
+fn user_page(
+    auth_user: Option<User>,
+    user_name: String,
+    mut params: GetPostsParams,
+    path: FullPath,
+) -> impl Reply {
+    let header = Global::create(auth_user, path.as_str()); // maybe if i'm clever i can abstract this away
     use db::schema::users::dsl::*;
     let conn = &POOL.get().unwrap();
     let user: Option<User> = users
@@ -516,26 +630,34 @@ fn user_page(auth_user: Option<User>, user_name: String, mut params: GetPostsPar
     if let Some(u) = user {
         params.user_id = Some(u.id);
         let notes = get_notes(params, None).unwrap();
-        render_template(&UserTemplate{
+        render_template(&UserTemplate {
             global: header,
             user: u.clone(), // TODO stop cloning
-            notes: notes
+            notes: notes,
+        })
+    } else {
+        render_template(&ErrorTemplate {
+            global: header,
+            error_message: "User not found",
+            ..Default::default()
         })
     }
-    else {
-        render_template(&ErrorTemplate{global: header, error_message: "User not found", ..Default::default()})
-    }
 }
-
 
 fn render_user_edit_page(user: Option<User>, user_name: String) -> impl Reply {
     let u = user.clone().unwrap();
     let global = Global::create(user, "/edit");
     if u.username == user_name || u.admin {
-        render_template(&UserEditTemplate{global: global, user: u})
-    }
-    else {
-        render_template(&ErrorTemplate{global: global, error_message: "You don't have permission to edit this page", ..Default::default()})
+        render_template(&UserEditTemplate {
+            global: global,
+            user: u,
+        })
+    } else {
+        render_template(&ErrorTemplate {
+            global: global,
+            error_message: "You don't have permission to edit this page",
+            ..Default::default()
+        })
     }
 }
 
@@ -568,16 +690,19 @@ fn edit_user(user: Option<User>, user_name: String, f: EditForm) -> impl Reply {
     let conn = &POOL.get().unwrap();
     if u.username == user_name || u.admin {
         use db::schema::users::dsl::*;
-        diesel::update(
-            users
-            .find(u.id))
+        diesel::update(users.find(u.id))
             .set(bio.eq(&f.bio.unwrap_or(String::new())))
-            .execute(conn).unwrap();
+            .execute(conn)
+            .unwrap();
     }
     let red: http::Uri = f.redirect_url.parse().unwrap();
     redirect(red)
 }
 
 async fn handle_rejection(err: Rejection) -> Result<impl Reply, Infallible> {
-    Ok(render_template(&ErrorTemplate{global: Global::create(None, "error"), error_message: "You do not have access to this page, it does not exist, or something went wrong."}))
+    Ok(render_template(&ErrorTemplate {
+        global: Global::create(None, "error"),
+        error_message:
+            "You do not have access to this page, it does not exist, or something went wrong.",
+    }))
 }

@@ -1,9 +1,9 @@
-use diesel::sqlite::SqliteConnection;
-use std::env;
 use super::schema::users;
-use diesel::prelude::*;
-use serde::{Deserialize};
 use bcrypt;
+use diesel::prelude::*;
+use diesel::sqlite::SqliteConnection;
+use serde::Deserialize;
+use std::env;
 
 #[derive(Debug, Clone, Default, Queryable, Deserialize)]
 pub struct RegistrationKey {
@@ -20,25 +20,23 @@ impl RegistrationKey {
             .ok();
         match key {
             Some(_) => true,
-            None => false
+            None => false,
         }
     }
 
     pub fn clear_key(conn: &SqliteConnection, key: &str) {
         use crate::db::schema::registration_keys::dsl::*;
-            diesel::delete(
-                registration_keys
-                .filter(value.eq(key)))
-                .execute(conn).ok();
+        diesel::delete(registration_keys.filter(value.eq(key)))
+            .execute(conn)
+            .ok();
     }
 }
-
 
 // a hack
 #[derive(QueryableByName)]
 #[table_name = "users"]
-pub struct Username{
-    pub username: String
+pub struct Username {
+    pub username: String,
 }
 
 #[derive(Debug, Clone, Default, Queryable, QueryableByName, Deserialize)]
@@ -52,24 +50,21 @@ pub struct User {
     pub password: Option<String>,
     pub admin: bool,
     pub remote_url: Option<String>,
-} 
+}
 
 impl User {
     pub fn get_url(&self) -> String {
-        format!("{}/user/{}", env::var("GOURAMI_DOMAIN").unwrap(), self.username)
+        format!(
+            "{}/user/{}",
+            env::var("GOURAMI_DOMAIN").unwrap(),
+            self.username
+        )
         // remote url?
     }
-    pub fn authenticate(
-        conn: &SqliteConnection,
-        user: &str,
-        pass: &str,
-    ) -> Option<Self> {
+    pub fn authenticate(conn: &SqliteConnection, user: &str, pass: &str) -> Option<Self> {
         use crate::db::schema::users::dsl::*;
         // TODO -- allow email login as well
-        let user = match users
-            .filter(username.eq(user))
-            .first::<Self>(conn)
-        {
+        let user = match users.filter(username.eq(user)).first::<Self>(conn) {
             Ok(user) => user,
             Err(e) => {
                 error!("Failed to load hash for {:?}: {:?}", user, e);
@@ -79,7 +74,7 @@ impl User {
 
         let u_pass = match &user.password {
             Some(p) => p,
-            None => return None
+            None => return None,
         };
 
         match bcrypt::verify(&pass, &u_pass) {
@@ -94,7 +89,7 @@ impl User {
 }
 
 #[derive(Insertable, Deserialize)]
-#[table_name="users"]
+#[table_name = "users"]
 pub struct NewUser<'a> {
     pub username: &'a str,
     pub password: &'a str,
@@ -102,7 +97,7 @@ pub struct NewUser<'a> {
 }
 
 #[derive(Insertable, Deserialize)]
-#[table_name="users"]
+#[table_name = "users"]
 pub struct NewRemoteUser {
     pub username: String,
     pub remote_url: Option<String>,
@@ -111,11 +106,8 @@ pub struct NewRemoteUser {
 
 // }
 // impl validate
-fn validate_username() {
-}
+fn validate_username() {}
 
-fn validate_password() {
-}
+fn validate_password() {}
 
-fn validate_email() {
-}
+fn validate_email() {}

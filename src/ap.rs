@@ -1,3 +1,12 @@
+use crate::db::conn::POOL;
+use crate::db::note::{NoteInput, RemoteNoteInput};
+use crate::db::user::{NewRemoteUser, User};
+use diesel::insert_into;
+use diesel::prelude::*;
+use diesel::sqlite::SqliteConnection;
+use serde_json::json;
+use serde_json::Value;
+use std::env;
 /// Users don't follow users in Gourami. Instead the server does hte following
 /// There are a number of reasons for this:
 /// Gives it a more 'community' feel -- everyone shares the same timeline
@@ -7,27 +16,17 @@
 /// This is a somewhat eccentric activitypub implementation, but it is as consistent with the spec
 /// as I can make it!
 use std::fs;
-use serde_json::json;
-use serde_json::{Value};
-use crate::db::note::{NoteInput, RemoteNoteInput};
-use crate::db::user::{User, NewRemoteUser};
-use crate::db::conn::POOL;
-use diesel::insert_into;
-use diesel::prelude::*;
-use diesel::sqlite::SqliteConnection;
-use std::env;
 lazy_static! {
     // const SERVER_ACTOR = "gourami.social"
 }
 
-
-// ActivityPub outbox 
+// ActivityPub outbox
 fn send_to_outbox(activity: bool) { // activitystreams object
-    // fetch/store from db.
-    // db objects need to serialize/deserialize this object
-    // if get -> fetch from db
-    // if post -> put to db, send to inbox of followers
-    // send to inbox of followers
+                                    // fetch/store from db.
+                                    // db objects need to serialize/deserialize this object
+                                    // if get -> fetch from db
+                                    // if post -> put to db, send to inbox of followers
+                                    // send to inbox of followers
 }
 
 enum Action {
@@ -63,68 +62,91 @@ fn categorize_input_message(v: Value) -> Action {
     Action::DoNothing
 }
 
-pub fn process_create_note(conn: &SqliteConnection, v: Value) -> Result<(), Box<dyn std::error::Error>>{
+pub fn process_create_note(
+    conn: &SqliteConnection,
+    v: Value,
+) -> Result<(), Box<dyn std::error::Error>> {
     // Actions usually associated with notes
     // maybe there's a cleaner way to do this. cant iterate over types
     // TODO inbox forwarding https://www.w3.org/TR/activitypub/#inbox-forwarding
     let object = v.get("object").ok_or("No object found")?;
     let _type = object.get("type").ok_or("No object type found")?;
-    let content = object.get("content").ok_or("No content found")?.as_str().ok_or("Not a string")?;
-    // clean content 
+    let content = object
+        .get("content")
+        .ok_or("No content found")?
+        .as_str()
+        .ok_or("Not a string")?;
+    // clean content
     // let in_reply_to = match object.get("inReplyTo") {
     //     Some(v) => Some(v.as_str().ok_or("Not a string")?), // TODO -- get reply from database
-        // None => None
+    // None => None
     // };
-    let remote_creator = object.get("attributedTo").ok_or("No attributedTo found")?.as_str().ok_or("Not a string")?;
-    let remote_url = object.get("url").ok_or("No url Found")?.as_str().ok_or("Not a string")?;
-    let remote_id = object.get("id").ok_or("No ID found")?.as_str().ok_or("Not a string")?;
+    let remote_creator = object
+        .get("attributedTo")
+        .ok_or("No attributedTo found")?
+        .as_str()
+        .ok_or("Not a string")?;
+    let remote_url = object
+        .get("url")
+        .ok_or("No url Found")?
+        .as_str()
+        .ok_or("Not a string")?;
+    let remote_id = object
+        .get("id")
+        .ok_or("No ID found")?
+        .as_str()
+        .ok_or("Not a string")?;
 
-    use crate::db::schema::users::dsl as u;
     use crate::db::schema::notes::dsl as n;
+    use crate::db::schema::users::dsl as u;
     //  if user not in db, insert
     //
     let new_user = NewRemoteUser {
-       username: String::from(remote_creator),
-       remote_url: Some(String::from(remote_creator)),
+        username: String::from(remote_creator),
+        remote_url: Some(String::from(remote_creator)),
     };
     //
-    insert_into(u::users)
-        .values(&new_user)
-        .execute(conn).ok(); // TODO only check unique constraint error
+    insert_into(u::users).values(&new_user).execute(conn).ok(); // TODO only check unique constraint error
 
-    let new_user_id: i32 = u::users.select(u::id)
+    let new_user_id: i32 = u::users
+        .select(u::id)
         .filter(u::remote_url.eq(remote_creator))
-        .first(conn).unwrap();
+        .first(conn)
+        .unwrap();
 
     let new_remote_note = RemoteNoteInput {
-    content: String::from(content),
-    in_reply_to: None, // TODO
-    neighborhood: true,
-    is_remote: true,
-    user_id: new_user_id, // for remote. placeholder. not sure what to do with this ultimately
-    remote_creator: String::from(remote_creator),
-    remote_id: String::from(remote_id),
-    remote_url: String::from(remote_url) } ;
+        content: String::from(content),
+        in_reply_to: None, // TODO
+        neighborhood: true,
+        is_remote: true,
+        user_id: new_user_id, // for remote. placeholder. not sure what to do with this ultimately
+        remote_creator: String::from(remote_creator),
+        remote_id: String::from(remote_id),
+        remote_url: String::from(remote_url),
+    };
     println!("{:?}", new_remote_note);
-    insert_into(n::notes).values(&new_remote_note)
-        .execute(conn).unwrap();
+    insert_into(n::notes)
+        .values(&new_remote_note)
+        .execute(conn)
+        .unwrap();
     return Ok(());
 }
 
-
-pub fn get_destinations() -> Vec<String> { // maybe lazy static this
+pub fn get_destinations() -> Vec<String> {
+    // maybe lazy static this
     use crate::db::schema::server_mutuals::dsl::*;
     let conn = &POOL.get().unwrap();
     server_mutuals.select(inbox_url).load(conn).unwrap()
 }
 
-pub async fn send_ap_message(ap_message: &Value, destinations: Vec<String>) -> Result<(), reqwest::Error> {
+pub async fn send_ap_message(
+    ap_message: &Value,
+    destinations: Vec<String>,
+) -> Result<(), reqwest::Error> {
     // Right now we have only once delivery
     for destination in destinations {
         let client = reqwest::Client::new();
-        client.post(&destination)
-            .json(&ap_message)
-            .send().await?;
+        client.post(&destination).json(&ap_message).send().await?;
     }
     Ok(())
 }
@@ -134,7 +156,7 @@ fn follow_remote_server(remote_url: String) {
 }
 
 fn generate_server_follow(remote_url: String) -> Value {
-    json!({	
+    json!({
         "@context": "https://www.w3.org/ns/activitystreams",
         "id": "https://my-example.com/my-first-follow",
         "type": "Follow",
@@ -229,15 +251,22 @@ mod tests {
                 }
               }
             }"#).unwrap();
-        assert_eq!(process_create_note(create_note_mastodon).unwrap(), RemoteNoteInput {
-            content: String::from("hello world"),
-        in_reply_to: None,
-        neighborhood: true,
-        is_remote: true,
-        user_id: -1, // for remote. placeholder. not sure what to do with this ultimately
-        remote_creator: String::from("https://mastodon.social/users/alexwennerberg"),
-        remote_id: String::from("https://mastodon.social/users/alexwennerberg/statuses/104028309437021899"),
-        remote_url: String::from("https://mastodon.social/@alexwennerberg/104028309437021899"),
-        })
+        assert_eq!(
+            process_create_note(create_note_mastodon).unwrap(),
+            RemoteNoteInput {
+                content: String::from("hello world"),
+                in_reply_to: None,
+                neighborhood: true,
+                is_remote: true,
+                user_id: -1, // for remote. placeholder. not sure what to do with this ultimately
+                remote_creator: String::from("https://mastodon.social/users/alexwennerberg"),
+                remote_id: String::from(
+                    "https://mastodon.social/users/alexwennerberg/statuses/104028309437021899"
+                ),
+                remote_url: String::from(
+                    "https://mastodon.social/@alexwennerberg/104028309437021899"
+                ),
+            }
+        )
     }
 }
