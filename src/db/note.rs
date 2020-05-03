@@ -3,8 +3,7 @@ use crate::db::user::User;
 use ammonia;
 use maplit::hashset;
 use regex::Regex;
-use serde::{de::Error, Deserialize, Deserializer, Serialize};
-use std::env; // weird import
+use serde::{Deserialize, Serialize};
 
 /// This isn't queryable directly,
 /// It only works when joined with the users table
@@ -26,11 +25,11 @@ pub struct Note {
     pub remote_id: Option<String>,
 }
 
-impl Note {
-    fn get_url(&self) -> String {
-        format!("{}/note/{}", env::var("GOURAMI_DOMAIN").unwrap(), self.id)
-    }
-}
+// impl Note {
+//     fn get_url(&self) -> String {
+//         format!("{}/note/{}", env::var("GOURAMI_DOMAIN").unwrap(), self.id)
+//     }
+// }
 
 /// Content in the DB is stored in plaintext (WILL BE)
 /// We want to render it so that it is rendered in HTML

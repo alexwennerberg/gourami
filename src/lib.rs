@@ -1,11 +1,13 @@
+// on for development work
+#![allow(dead_code)]
+#![allow(unused_imports)]
+
 #[macro_use]
 extern crate diesel;
 #[macro_use]
 extern crate log;
 #[macro_use]
 extern crate lazy_static;
-#[macro_use]
-extern crate maplit;
 
 use serde_json::Value;
 use std::convert::Infallible;
@@ -15,7 +17,7 @@ use warp::filters::path::FullPath;
 use warp::http;
 use warp::hyper::Body;
 use warp::redirect::redirect;
-use warp::{reject::Reject, Filter, Rejection, Reply};
+use warp::{Filter, Rejection, Reply};
 
 use askama::Template;
 use db::conn::POOL;
@@ -406,9 +408,9 @@ fn do_login(form: LoginForm) -> impl Reply {
     }
 }
 
-fn do_logout(cookie: String) -> impl Reply {
+fn do_logout(cook: String) -> impl Reply {
     use db::schema::sessions::dsl::*;
-    diesel::delete(sessions.filter(cookie.eq(cookie)))
+    diesel::delete(sessions.filter(cookie.eq(cook)))
         .execute(&POOL.get().unwrap())
         .unwrap();
     redirect(warp::http::Uri::from_static("/"))
@@ -459,7 +461,7 @@ fn get_single_note(note_id: i32) -> Option<Vec<UserNote>> {
     Some(
         results
             .into_iter()
-            .map(|mut a| {
+            .map(|a| {
                 // the ids are swapped for some reason
                 UserNote {
                     note: a.0,
@@ -663,13 +665,13 @@ fn render_user_edit_page(user: Option<User>, user_name: String) -> impl Reply {
 
 pub fn get_outbox() {}
 
-pub fn post_outbox(message: Value) {}
+// pub fn post_outbox(message: Value) {}
 
 // TODO figure out how to follow mastodon
 //
-pub fn user_followers(user_name: String) {}
+// pub fn user_followers(user_name: String) {}
 
-pub fn user_following(user_name: String) {}
+// pub fn user_following(user_name: String) {}
 
 pub fn post_inbox(message: Value) -> impl Reply {
     // TODO check if it is a create note message
@@ -699,7 +701,7 @@ fn edit_user(user: Option<User>, user_name: String, f: EditForm) -> impl Reply {
     redirect(red)
 }
 
-async fn handle_rejection(err: Rejection) -> Result<impl Reply, Infallible> {
+async fn handle_rejection(_: Rejection) -> Result<impl Reply, Infallible> {
     Ok(render_template(&ErrorTemplate {
         global: Global::create(None, "error"),
         error_message:

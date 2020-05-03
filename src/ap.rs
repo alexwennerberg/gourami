@@ -21,12 +21,8 @@ lazy_static! {
 }
 
 // ActivityPub outbox
-fn send_to_outbox(activity: bool) { // activitystreams object
-                                    // fetch/store from db.
-                                    // db objects need to serialize/deserialize this object
-                                    // if get -> fetch from db
-                                    // if post -> put to db, send to inbox of followers
-                                    // send to inbox of followers
+fn send_to_outbox(activity: bool) {
+    // activitystreams object fetch/store from db.  db objects need to serialize/deserialize this object if get -> fetch from db if post -> put to db, send to inbox of followers send to inbox of followers
 }
 
 enum Action {

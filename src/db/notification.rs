@@ -1,5 +1,5 @@
 use super::schema::{notification_viewers, notifications};
-use serde::{de::Error, Deserialize, Deserializer, Serialize};
+use serde::{Deserialize, Serialize};
 
 #[derive(Queryable, Clone, Deserialize, Serialize)]
 pub struct Notification {
