@@ -4,7 +4,7 @@ use gourami_social::routes::run_server;
 #[tokio::main]
 async fn main() {
     let matches = App::new("Gourami")
-        .version("0.0.0")
+        .version("0.1.0")
         .author("Alex Wennerberg <alex@alexwennerberg.com>")
         .about("Gourami server and admin tools")
         .subcommand(App::new("run").about("Run server"))

@@ -1,6 +1,8 @@
 # Gourami
+![Build and Test](https://github.com/alexwennerberg/gourami/workflows/Build%20and%20Test/badge.svg)
 
 An intentionally small, ultra-lightweight social media network (ActivityPub integration TBD)
+
 
 ## Philosophy and Design
 
@@ -37,6 +39,6 @@ Run the local server with `gourami_social run`
 
 ## Deployment
 
-Get a Linux box and configure it. Set up ssl, firewall rules, logging, etc.
+**Gourami is in alpha / development stage.** I have a small server running with some of my friends, but this is absolutely not ready for any sort of production environment, and a key feature, ActivityPub federation, is not finished yet.
 
 I think it'd be interesting to set this up so that it can be deployed on a Platform as a Service or Function as a Service offering, but I haven't found any great way to run Sqlite in that context. I may put together an ansible playbook or something.
