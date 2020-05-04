@@ -37,6 +37,6 @@ Run the local server with `gourami_social run`
 
 ## Deployment
 
-Get a Linux box and configure it
+Get a Linux box and configure it. Set up ssl, firewall rules, logging, etc.
 
-TBD
+I think it'd be interesting to set this up so that it can be deployed on a Platform as a Service or Function as a Service offering, but I haven't found any great way to run Sqlite in that context. I may put together an ansible playbook or something.
