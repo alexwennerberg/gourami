@@ -3,6 +3,7 @@
 
 An intentionally small, ultra-lightweight social media network (ActivityPub integration TBD)
 
+![image](docs/demo.jpg)
 
 ## Philosophy and Design
 
