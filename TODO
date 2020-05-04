@@ -1,92 +1,22 @@
 v0.1.0 goals: sharing with a small community
 
+NOTES
+
+https://flak.tedunangst.com/post/ActivityPub-as-it-has-been-understood
+
 major
-
-minor
-- better tagging / notifications
-- better session management?
-- Change to GPL v3 license due to dependencies
-
-
-Proper threading
-- Render all DESCENDENTS
-(allow for replies to multiple items...)
-
 Federation / ActivityPub
 retryeets
-following/followers & separate timelines
-text cant exist after URLs
+DMs with expiration on read?
 
-REFACTORING --
-
+minor
 Add limit of 255 characters for usernames and other limits to get urls to render
-
-askama stuff 
-MIDDLEWARE
-
-A nice big new feature would be event planning
-
-https://github.com/seanmonstar/warp/blob/8b8c9950260ef7312e29c4af72b0753619a5ad5c/examples/tls.rs
-
-sanitize on write to db
-
-parse markdown?
-
-send notes as cleartext and html? cleanup html parsing.
-
-understand fn vs async fn in tokio
-
-marketing tagline:
-
-"An intentionally small, lightweight activitypub community"
-
-NOTES--
-
-NO DMS -- not really secure in AP
-NO IMAGES -- issue described in https://flak.tedunangst.com/post/honk
-
-mastodon doesnt implement client-to-server
-
-outbox -?
-
-TODO --
-
-First, client to server protocol, then federation
-
-Person
-Note
-Follow/Unfollow
-Inbox
-Outbox --> not really strictly necessary?
-
-crates--
-logging
-json and serde json
-
-activitypub to implement:
-
-Person
-https://www.w3.org/TR/activitystreams-vocabulary/#dfn-person
-MUST have 
-inbox, outbox
-
-Note --  Represents a short written work typically less than a single paragraph in length. 
-
-Object properties: https://www.w3.org/TR/activitystreams-vocabulary/#dfn-object
-
-used https://github.com/kaj/warp-diesel-ructe-sample
+dotenv setup
+file attachments
 
 Webfinger
 
 Cite this https://git.cypr.io/oz/autolink-rust/src/branch/master/src/lib.rs
-
-Profiles:
-
-Follow 
-
-AP key verification
-
-Status == ActivityPub "Note"
 
 authentication
 https://github.com/messense/otpauth-rs

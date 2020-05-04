@@ -12,6 +12,7 @@ clap = "2.33.0"
 chrono = "0.4.11"
 diesel = { version = "1.4.4", features = ["sqlite", "r2d2"] }
 env_logger = "0.7.1"
+http-signature-normalization = "0.5.1"
 lazy_static = "1.4.0"
 log = "0.4.8"
 rand = "0.7.3"
