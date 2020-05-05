@@ -232,7 +232,6 @@ impl HttpSignature for reqwest::RequestBuilder {
 mod tests {
     use super::*;
 
-    #[test]
     fn test_sign_outgoing_msg() {
         let body: Value = serde_json::from_str(r#"{"foo": "bar"}"#).unwrap();
         let req = reqwest::Client::new()
