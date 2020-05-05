@@ -7,7 +7,6 @@ edition = "2018"
 [dependencies]
 askama = "0.8.0"
 bcrypt = "0.7.0"
-cookie = "0.13.3"
 clap = "2.33.0"
 chrono = "0.4.11"
 diesel = { version = "1.4.4", features = ["sqlite", "r2d2"] }
