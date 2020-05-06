@@ -30,3 +30,12 @@ I would recommend following basic Linux syadmin best practices: disable password
 ## Passwordless local deployment
 
 Don't do this on the public internet, it is a bad idea and will only lead to ruin! Seriously, don't do it.
+
+## Federation
+
+ActivityPub varies across servers. Some functionality may not work with other AP servers. Examples of things that may break include:
+
+* HTML tags that aren't supported getting sanitized
+* A different key algorithm being used for HTML signatures
+* Custom service-specific activitypub features
+* AP features supported by their server but not Gourami (Gourami is extremely limited in its interpretation of ActivityPub)
