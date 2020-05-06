@@ -1,3 +1,5 @@
+use ring::digest;
+use data_encoding::HEXUPPER;
 use crate::db::conn::POOL;
 use crate::db::note::{NoteInput, RemoteNoteInput};
 use crate::db::user::{NewRemoteUser, User};
@@ -205,7 +207,7 @@ pub trait HttpSignature {
 impl HttpSignature for reqwest::RequestBuilder {
     fn http_sign_outgoing(self) -> Result<reqwest::Request, Box<dyn std::error::Error>> {
         let req = self.build().unwrap();
-        let config = Config::default().set_expiration(Duration::seconds(5));
+        let config = Config::default().set_expiration(Duration::seconds(30));
         // let server_key_id = 
         let server_key_id: &str = &format!("{}/inbox", &env::var("GOURAMI_DOMAIN").unwrap());
         let mut bt = std::collections::BTreeMap::new();
@@ -218,9 +220,11 @@ impl HttpSignature for reqwest::RequestBuilder {
             req.url().path().to_string()
         };
         let unsigned = config.begin_sign(req.method().as_str(), &path_and_query, bt)?;
+        println!("{:?}", &unsigned);
         let sig_header = unsigned.sign(server_key_id.to_owned(), |signing_string| {
-            // sign here
-             Ok(signing_string.to_owned()) as Result<_, Box<dyn std::error::Error>>
+             let digest = digest::digest(&digest::SHA256, &signing_string.as_bytes());
+             let hexencode = HEXUPPER.encode(digest.as_ref());
+             Ok(hexencode) as Result<_, Box<dyn std::error::Error>>
         })?
         .signature_header();
         println!("{:?}", sig_header);
@@ -228,16 +232,21 @@ impl HttpSignature for reqwest::RequestBuilder {
     }
 }
 
+fn verify_ap_message() {
+
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
 
+    #[test]
     fn test_sign_outgoing_msg() {
         let body: Value = serde_json::from_str(r#"{"foo": "bar"}"#).unwrap();
         let req = reqwest::Client::new()
             .post("https://localhost:3030")
             .json(&body)
-            .http_sign_outgoing();
+            .http_sign_outgoing().unwrap();
     }
 
     #[test]
@@ -245,7 +254,7 @@ mod tests {
         // to write
     }
 
-    // #[test]
+    #[test] // TODO -- set env variales in test
     fn test_mastodon_create_status_example() {
         let create_note_mastodon: Value = serde_json::from_str(r#"{
               "id": "https://mastodon.social/users/alexwennerberg/statuses/104028309437021899/activity",
