@@ -107,6 +107,7 @@ struct RegisterTemplate<'a> {
 #[template(path = "server_info.html")]
 struct ServerInfoTemplate<'a> {
     global: Global<'a>,
+    users: Vec<User>,
 }
 
 const PAGE_SIZE: i64 = 50; 
@@ -197,7 +198,7 @@ fn delete_note(note_id: i32) -> Result<(), Box<dyn std::error::Error>> {
 struct NewNoteRequest {
     note_input: String, // has to be String
     redirect_url: String,
-    neighborhood: Option<String>, // "on"
+    neighborhood: Option<String>, // "on" TODO -- add a custom serialization here
 }
 
 async fn handle_new_note_form(u: Option<User>, f: NewNoteRequest) -> Result<impl Reply, Rejection> {
@@ -478,6 +479,13 @@ fn get_single_note(note_id: i32) -> Option<Vec<UserNote>> {
     )
 }
 
+fn get_users() -> Result<Vec<User>, diesel::result::Error> {
+    use db::schema::users::dsl as u;
+    let conn = &POOL.get().unwrap();
+    let users = u::users.load(conn);
+    users
+}
+
 /// We have to do a join here
 fn get_notes(
     params: GetPostsParams,
@@ -609,8 +617,10 @@ impl<'a> Default for ErrorTemplate<'a> {
 }
 
 fn server_info_page(auth_user: Option<User>) -> impl Reply {
+    let users = get_users().unwrap();
     render_template(&ServerInfoTemplate {
         global: Global::create(auth_user, "/server"),
+        users: users
     })
 }
 
@@ -702,7 +712,9 @@ pub fn post_inbox(message: Value) -> impl Reply {
 #[derive(Deserialize)]
 struct EditForm {
     redirect_url: String,
-    bio: Option<String>,
+    bio: String,
+    show_email: Option<String>,
+    email: String,
 }
 
 fn edit_user(user: Option<User>, user_name: String, f: EditForm) -> impl Reply {
@@ -711,7 +723,7 @@ fn edit_user(user: Option<User>, user_name: String, f: EditForm) -> impl Reply {
     if u.username == user_name || u.admin {
         use db::schema::users::dsl::*;
         diesel::update(users.find(u.id))
-            .set(bio.eq(&f.bio.unwrap_or(String::new())))
+            .set((bio.eq(&f.bio), email.eq(&f.email), show_email.eq(&f.show_email.is_some())))
             .execute(conn)
             .unwrap();
     }
