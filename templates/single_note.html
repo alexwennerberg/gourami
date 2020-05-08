@@ -8,8 +8,7 @@
   {% if note.note.neighborhood %}🏠{%endif%}
   {% if note.note.is_remote %}🌎{%endif%}
   <a href="/note/{{note.note.id}}">📝{{note.note.id}}</a>
-  <script>var d = new Date('{{note.note.created_time}}'); document.write(d.toLocaleString())</script>
-  <noscript>{{note.note.created_time}}</noscript> <a
+  {{note.note.created_time}} <a
     class="bold" href="/user/{{note.username}}">@{{note.username}}</a>
 {% if global.logged_in  %}
 <a title="reply" href="#" onclick="reply({{note.note.id}}, '{{note.username}}')">↪</a>
