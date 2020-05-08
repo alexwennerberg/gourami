@@ -109,6 +109,8 @@ struct ServerInfoTemplate<'a> {
     global: Global<'a>,
 }
 
+const PAGE_SIZE: i64 = 50; 
+
 struct Global<'a> {
     // variables used on all pages w header
     title: &'a str,
@@ -116,6 +118,7 @@ struct Global<'a> {
     page_num: i64,
     page_title: &'a str,
     me: User,
+    has_more: bool,
     logged_in: bool,
     unread_notifications: i64, // db query on every page
 }
@@ -158,6 +161,7 @@ impl<'a> Default for Global<'a> {
             page_num: 1,
             page_title: "",
             logged_in: false,
+            has_more: false,
             unread_notifications: 0,
         }
     }
@@ -481,7 +485,7 @@ fn get_notes(
 ) -> Result<Vec<UserNote>, diesel::result::Error> {
     use db::schema::notes::dsl as n;
     use db::schema::users::dsl as u;
-    const PAGE_SIZE: i64 = 50; 
+    // TODO -- add whether this is complete so i can page properly
     let mut query = n::notes
         .inner_join(u::users)
         .order(n::id.desc())
@@ -558,10 +562,15 @@ fn render_timeline(
     // TODO -- ignore neighborhood replies
     let notes = get_notes(params, Some(false));
     match notes {
-        Ok(n) => render_template(&TimelineTemplate {
+        Ok(n) => {
+            // NOTE -- breaks when  exactly 50 notes
+            if n.len() == PAGE_SIZE as usize {
+                header.has_more = true;
+            }
+            render_template(&TimelineTemplate {
             global: header,
             notes: n,
-        }),
+        })},
         _ => render_template(&ErrorTemplate {
             global: header,
             error_message: "Could not fetch notes",
@@ -637,6 +646,10 @@ fn user_page(
     if let Some(u) = user {
         params.user_id = Some(u.id);
         let notes = get_notes(params, None).unwrap();
+        // NOTE -- breaks when  exactly 50 notes
+        if notes.len() == PAGE_SIZE as usize {
+            header.has_more = true;
+        }
         render_template(&UserTemplate {
             global: header,
             user: u.clone(), // TODO stop cloning

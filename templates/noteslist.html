@@ -2,7 +2,9 @@
 {% for note in notes %}
   {% include "single_note.html" %}
 {% endfor %}
+{% if global.has_more %}
 <div class='text-right'>
 <a href="?page={{global.page_num + 1}}">more↠</a>
 </div>
+{% endif %}
 </div>
