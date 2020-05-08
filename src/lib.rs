@@ -113,6 +113,7 @@ struct Global<'a> {
     // variables used on all pages w header
     title: &'a str,
     page: &'a str,
+    page_num: i64,
     page_title: &'a str,
     me: User,
     logged_in: bool,
@@ -154,6 +155,7 @@ impl<'a> Default for Global<'a> {
             title: "gourami", // todo set with config
             me: User::default(),
             page: "",
+            page_num: 1,
             page_title: "",
             logged_in: false,
             unread_notifications: 0,
@@ -419,7 +421,7 @@ fn do_logout(cook: String) -> impl Reply {
 #[derive(Deserialize)]
 struct GetPostsParams {
     #[serde(default = "default_page")]
-    page_num: i64,
+    page: i64,
     user_id: Option<i32>,
 }
 fn default_page() -> i64 {
@@ -429,7 +431,7 @@ fn default_page() -> i64 {
 impl Default for GetPostsParams {
     fn default() -> Self {
         GetPostsParams {
-            page_num: 1,
+            page: 1,
             user_id: None,
         }
     }
@@ -479,12 +481,12 @@ fn get_notes(
 ) -> Result<Vec<UserNote>, diesel::result::Error> {
     use db::schema::notes::dsl as n;
     use db::schema::users::dsl as u;
-    const PAGE_SIZE: i64 = 250;
+    const PAGE_SIZE: i64 = 50; 
     let mut query = n::notes
         .inner_join(u::users)
         .order(n::id.desc())
         .limit(PAGE_SIZE)
-        .offset((params.page_num - 1) * PAGE_SIZE)
+        .offset((params.page - 1) * PAGE_SIZE)
         .into_boxed();
     if let Some(u_id) = params.user_id {
         query = query.filter(u::id.eq(u_id));
@@ -519,7 +521,8 @@ fn render_notifications(auth_user: Option<User>) -> impl Reply {
         .inner_join(nv::notification_viewers)
         .order(n::id.desc())
         .filter(nv::user_id.eq(my_id))
-        .limit(1000) // arbitrary TODO cleanup / paginate
+        .limit(100) // NOTE -- if you have 100 unread notifications this will cause issues
+        // older notifications wont be seen
         .load::<(Notification, NotificationViewer)>(conn)
         .unwrap()
         .into_iter()
@@ -550,7 +553,8 @@ fn render_timeline(
 ) -> impl Reply {
     // no session -- anonymous
     // pulls a bunch of data i dont really need
-    let header = Global::create(auth_user, url_path.as_str());
+    let mut header = Global::create(auth_user, url_path.as_str());
+    header.page_num = params.page;
     // TODO -- ignore neighborhood replies
     let notes = get_notes(params, Some(false));
     match notes {
@@ -622,7 +626,8 @@ fn user_page(
     mut params: GetPostsParams,
     path: FullPath,
 ) -> impl Reply {
-    let header = Global::create(auth_user, path.as_str()); // maybe if i'm clever i can abstract this away
+    let mut header = Global::create(auth_user, path.as_str()); // maybe if i'm clever i can abstract this away
+    header.page_num = params.page;
     use db::schema::users::dsl::*;
     let conn = &POOL.get().unwrap();
     let user: Option<User> = users

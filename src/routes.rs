@@ -26,7 +26,7 @@ pub async fn run_server() {
 
     let user_page = session_filter()
         .and(path!("user" / String))
-        .and(form())
+        .and(query())
         .and(path::full())
         .map(user_page);
 
