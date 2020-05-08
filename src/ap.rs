@@ -1,9 +1,12 @@
 use ring::digest;
-use data_encoding::HEXUPPER;
+use ring::signature::UnparsedPublicKey;
+use std::path::Path;
+use base64;
 use crate::db::conn::POOL;
 use crate::db::note::{NoteInput, RemoteNoteInput};
 use crate::db::user::{NewRemoteUser, User};
 use diesel::insert_into;
+use openssl::rsa::Rsa;
 use diesel::prelude::*;
 use diesel::sqlite::SqliteConnection;
 use serde_json::json;
@@ -11,8 +14,8 @@ use serde_json::Value;
 use std::env;
 use std::collections::BTreeMap;
 use reqwest::Request;
-use chrono::Duration;
-use http_signature_normalization::Config;
+use chrono::{Duration, Utc};
+use http_signature_normalization::{Config};
 
 /// Users don't follow users in Gourami. Instead the server does hte following
 /// There are a number of reasons for this:
@@ -42,12 +45,12 @@ enum Action {
 }
 
 /// get the server user json
-fn server_actor_json() -> Value {
+pub fn server_actor_json() -> Value {
     // TODO figure out how to get lazy static working
     let DOMAIN: &str = &env::var("GOURAMI_DOMAIN").unwrap();
-    let SERVER_ACTOR: &str = &format!("{}/actor", &env::var("GOURAMI_DOMAIN").unwrap());
-    let SERVER_INBOX: &str = &format!("{}/inbox", &env::var("GOURAMI_DOMAIN").unwrap());
-    let SERVER_KEY_ID: &str = &format!("{}/inbox", &env::var("GOURAMI_DOMAIN").unwrap());
+    let SERVER_ACTOR: &str = &format!("http://{}/actor", DOMAIN);
+    let SERVER_INBOX: &str = &format!("http://{}/inbox", DOMAIN);
+    let SERVER_KEY_ID: &str = &format!("{}#key", SERVER_ACTOR);
     let SERVER_PUBLIC_KEY: &str = &fs::read_to_string(env::var("SIGNATURE_PUBKEY").unwrap()).unwrap();
     json!({
     "@context": [
@@ -201,15 +204,25 @@ pub fn new_note_to_ap_message(note: &NoteInput, user: &User) -> Value {
 // fn generate_ap(activity: Activity) {
 // }
 pub trait HttpSignature {
-    fn http_sign_outgoing(self) -> Result<reqwest::Request, Box<dyn std::error::Error>>;
+    fn http_sign_outgoing(self) -> Result<reqwest::RequestBuilder, Box<dyn std::error::Error>>;
 }
 
+// fn read_file(path: &std::path::Path) -> Vec<u8> {
+//         use std::io::Read;
+
+//         let mut file = std::fs::File::open(path).unwrap();
+//         let mut contents: Vec<u8> = Vec::new();
+//         file.read_to_end(&mut contents).unwrap();
+//         contents
+// }
+
 impl HttpSignature for reqwest::RequestBuilder {
-    fn http_sign_outgoing(self) -> Result<reqwest::Request, Box<dyn std::error::Error>> {
-        let req = self.build().unwrap();
-        let config = Config::default().set_expiration(Duration::seconds(30));
+    fn http_sign_outgoing(self) -> Result<reqwest::RequestBuilder, Box<dyn std::error::Error>> {
+        // try and remove clone here
+        let req = self.try_clone().unwrap().build().unwrap();
+        let config = Config::default().set_expiration(Duration::seconds(3600)).dont_use_created_field();
         // let server_key_id = 
-        let server_key_id: &str = &format!("{}/inbox", &env::var("GOURAMI_DOMAIN").unwrap());
+        let server_key_id: &str = &format!("http://{}/actor#key", &env::var("GOURAMI_DOMAIN").unwrap());
         let mut bt = std::collections::BTreeMap::new();
         for (k, v) in req.headers().iter() {
             bt.insert(k.as_str().to_owned(), v.to_str()?.to_owned());
@@ -222,30 +235,130 @@ impl HttpSignature for reqwest::RequestBuilder {
         let unsigned = config.begin_sign(req.method().as_str(), &path_and_query, bt)?;
         println!("{:?}", &unsigned);
         let sig_header = unsigned.sign(server_key_id.to_owned(), |signing_string| {
-             let digest = digest::digest(&digest::SHA256, &signing_string.as_bytes());
-             let hexencode = HEXUPPER.encode(digest.as_ref());
+            let private_key =  read_file(Path::new(&env::var("SIGNATURE_PRIVKEY").unwrap()));
+            let key_pair = ring::signature::RsaKeyPair::from_pkcs8(&private_key.unwrap()).unwrap();
+            let rng = ring::rand::SystemRandom::new();
+            let mut signature = vec![0; key_pair.public_modulus_len()];
+            key_pair.sign(&ring::signature::RSA_PKCS1_SHA256, &rng, signing_string.as_bytes(), &mut signature).unwrap();
+             // let digest = digest::digest(&digest::SHA256, &signing_string.as_bytes());
+             println!("{:?}", &signing_string);
+             let hexencode = base64::encode(&signature);
              Ok(hexencode) as Result<_, Box<dyn std::error::Error>>
         })?
         .signature_header();
-        println!("{:?}", sig_header);
-        Ok(req)
+        // this SHOULD be OK
+        // host and date?
+        println!("{:?}", &sig_header);
+        let result = self.header("Signature", sig_header);
+        println!("{:?}", &result);
+        Ok(result)
     }
 }
 
-fn verify_ap_message() {
+fn sign_and_verify_rsa(private_key_path: &std::path::Path,
+public_key_path: &std::path::Path)
+-> Result<(), MyError> {
+    use ring::{rand, signature};
+// Create an `RsaKeyPair` from the DER-encoded bytes. This example uses
+// a 2048-bit key, but larger keys are also supported.
+let private_key_der = read_file(private_key_path)?;
+let key_pair = signature::RsaKeyPair::from_pkcs8(&private_key_der)
+.map_err(|_| MyError::BadPrivateKey)?;
 
+// Sign the message "hello, world", using PKCS#1 v1.5 padding and the
+// SHA256 digest algorithm.
+const MESSAGE: &'static [u8] = b"hello, world";
+let rng = rand::SystemRandom::new();
+let mut signature = vec![0; key_pair.public_modulus_len()];
+key_pair.sign(&signature::RSA_PKCS1_SHA256, &rng, MESSAGE, &mut signature)
+.map_err(|_| MyError::OOM)?;
+
+// Verify the signature.
+let public_key =
+signature::UnparsedPublicKey::new(&signature::RSA_PKCS1_2048_8192_SHA256,
+               read_file(public_key_path)?);
+public_key.verify(MESSAGE, &signature)
+.map_err(|_| MyError::BadSignature)
+}
+
+#[derive(Debug)]
+enum MyError {
+IO(std::io::Error),
+BadPrivateKey,
+OOM,
+BadSignature,
+}
+
+fn read_file(path: &std::path::Path) -> Result<Vec<u8>, MyError> {
+use std::io::Read;
+
+let mut file = std::fs::File::open(path).map_err(|e| MyError::IO(e))?;
+let mut contents: Vec<u8> = Vec::new();
+file.read_to_end(&mut contents).map_err(|e| MyError::IO(e))?;
+Ok(contents)
+}
+fn verify_ap_message(method: &str, path_and_query: &str, headers: BTreeMap<String,String>) {
+    // TODO -- case insensitivity?
+    // mastodon doesnt use created filed
+    let config = Config::default().set_expiration(Duration::seconds(3600)).dont_use_created_field();
+    println!("{:?}", config);
+    println!("{:?}", headers);
+    let unverified = config.begin_verify(method, path_and_query, headers).unwrap();
+    let res = unverified.verify(|signature, signing_string| {
+        println!("{:?}", signature);
+        println!("{:?}", signing_string);
+        let res: Value = reqwest::blocking::get(unverified.key_id()).unwrap().json().unwrap();
+        let public_key: &[u8]= res.get("publicKey").unwrap().get("publicKeyPem").unwrap().as_str().unwrap().as_bytes();
+        // let public_key =  &read_file(Path::new(&env::var("SIGNATURE_PUBKEY").unwrap())).unwrap();
+        let r = Rsa::public_key_from_pem(public_key).unwrap();
+        let public_key = r.public_key_to_der_pkcs1().unwrap();
+        let key = UnparsedPublicKey::new(&ring::signature::RSA_PKCS1_2048_8192_SHA256, &public_key);
+        let hexdecode = base64::decode(signature).unwrap();
+        key.verify(signing_string.as_bytes(), &hexdecode).unwrap();
+        println!("{:?}", hexdecode);
+        true});
+    println!("{:?}", res);
+    // verify unverified
+    println!("{:?}", unverified);
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
 
+    fn prepare_headers() -> BTreeMap<String, String> {
+        let mut headers = BTreeMap::new();
+        headers.insert(
+            "Content-Type".to_owned(),
+            "application/activity+json".to_owned(),
+        );
+        headers
+    }
+
     #[test]
-    fn test_sign_outgoing_msg() {
+    fn test_verify_rsa() {
+        sign_and_verify_rsa(Path::new(&env::var("SIGNATURE_PRIVKEY").unwrap()), Path::new(&env::var("SIGNATURE_PUBKEY").unwrap())).unwrap()
+    }
+
+    #[test]
+    fn test_verify_ap_message() {
+        let mut headers = BTreeMap::new();
+        headers.insert("Content-Type".to_owned(), "application/activity+json".to_owned());
+        headers.insert("date".to_owned(), "Fri, 08 May 2020 00:42:41 +0000".to_owned());
+        let sample = "keyId=\"http://localhost:3030/actor#key\",algorithm=\"hs2019\",headers=\"(request-target) content-type date\",signature=\"YCJ7bwIX8y6rJ9Be31wm4ZkiBqper4vGydPHc/avBRE7D7SpIfWO+aA00VQcHlAGYjNRLEWiA5SkpszW3wnAs5JzuRWK01pELsEluYyE54/ou+rc06DxPt9beb9mIrbPs9EByN6epkYAGuKna8xoE7qsjhpfz5Q0SfNP3qS10uLaP5/puFCxMVgDIb3wMiJz1WiCzWZ26e5Wujoea8l5HS37V4xYhqicXmTvU1SzEiC+Qsn3RteWTesItAEDID5CFOhFizkSvgYVNjpTMwbLf1QiqyfgctVQIYt4fuQSTlcdKjhpS1cAxKTJg5hFQ9vjo1Qm1NP6XBALcRWpAIw5SA==\"";
+        headers.insert("signature".to_owned(), sample.to_owned());
+        verify_ap_message("post", "/inbox", headers);
+    }
+
+    #[test]
+    fn test_send_ap() {
         let body: Value = serde_json::from_str(r#"{"foo": "bar"}"#).unwrap();
         let req = reqwest::Client::new()
-            .post("https://localhost:3030")
+            .post("http://localhost:3030/inbox")
+            // for mastodon config -- newer versions of httsig dont use this
+            .header("date", Utc::now().to_rfc2822())
             .json(&body)
+            .header("Content-Type", "application/activity+json")
             .http_sign_outgoing().unwrap();
     }
 

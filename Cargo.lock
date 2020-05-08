@@ -117,9 +117,9 @@ checksum = "b41b7ea54a0c9d92199de89e20e58d49f02f8e699814ef3fdf266f6f748d15c7"
 
 [[package]]
 name = "base64"
-version = "0.12.0"
+version = "0.12.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7d5ca2cd0adc3f48f9e9ea5a6bbdf9ccc0bfade884847e484d452414c7ccffb3"
+checksum = "53d1ccbaf7d9ec9537465a97bf19edc1a4e158ecb49fc16178202238c569cc42"
 
 [[package]]
 name = "bcrypt"
@@ -127,7 +127,7 @@ version = "0.7.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6f02d7d008a57bcb2251ba115b803934e02315edbde9a861c88713493e381b63"
 dependencies = [
- "base64 0.12.0",
+ "base64 0.12.1",
  "blowfish",
  "byteorder",
  "lazy_static",
@@ -327,12 +327,6 @@ dependencies = [
  "quote 1.0.3",
  "syn 1.0.17",
 ]
-
-[[package]]
-name = "data-encoding"
-version = "2.2.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "11c0346158a19b3627234e15596f5e465c360fcdb97d817bcb255e0510f5a788"
 
 [[package]]
 name = "derive_builder"
@@ -611,10 +605,10 @@ version = "0.1.0"
 dependencies = [
  "ammonia",
  "askama",
+ "base64 0.12.1",
  "bcrypt",
  "chrono",
  "clap",
- "data-encoding",
  "diesel",
  "env_logger",
  "http-signature-normalization",
@@ -622,6 +616,7 @@ dependencies = [
  "lazy_static",
  "log 0.4.8",
  "maplit",
+ "openssl",
  "rand 0.7.3",
  "regex",
  "reqwest",
@@ -658,7 +653,7 @@ version = "0.3.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ed18eb2459bf1a09ad2d6b1547840c3e5e62882fa09b9a6a20b1de8e3228848f"
 dependencies = [
- "base64 0.12.0",
+ "base64 0.12.1",
  "bitflags",
  "bytes",
  "headers-core",

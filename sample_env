@@ -6,5 +6,5 @@ export RUST_LOG=debug,hyper=info,html5ever=info
 export GOURAMI_ENV="DEV"
 export GOURAMI_DOMAIN="localhost:3030"
 # used for http signatures
-export SIGNATURE_PRIVKEY="local/private.pem"
-export SIGNATURE_PUBKEY="local/public.pem"
+export SIGNATURE_PRIVKEY="local/private.pk8"
+export SIGNATURE_PUBKEY="local/public.der"

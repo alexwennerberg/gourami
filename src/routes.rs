@@ -1,7 +1,7 @@
 use crate::session;
 use crate::*;
 use env_logger;
-use warp::{body::form, body::json, filters::cookie, filters::query::query, path};
+use warp::{reply, body::form, body::json, filters::cookie, filters::query::query, path};
 
 // I had trouble decoupling routes from server -- couldnt figure out the return type
 pub async fn run_server() {
@@ -87,6 +87,8 @@ pub async fn run_server() {
     // setup authentication
     // POST
     // TODO -- setup proper replies
+    let server_actor = path!("actor").map(|| reply::json(&ap::server_actor_json()));
+
     let post_server_inbox = path!("inbox").and(json()).map(post_inbox);
 
     let post_server_inbox = path!("inbox").and(json()).map(post_inbox);
@@ -99,6 +101,7 @@ pub async fn run_server() {
     // TODO secure against xss
     // used for api based authentication
     // let api_filter = session::create_session_filter(&POOL.get());
+    let static_json = server_actor; // rename html renders
     let html_renders = home
         .or(login_page)
         .or(register_page)
@@ -119,7 +122,7 @@ pub async fn run_server() {
     // catch all for any other paths
 
     let routes = warp::get()
-        .and(html_renders)
+        .and(html_renders.or(static_json))
         .or(warp::post()
             .and(warp::body::content_length_limit(1024 * 32))
             .and(forms))

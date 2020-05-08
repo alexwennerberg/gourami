@@ -25,7 +25,8 @@ Read [this document](https://git.sr.ht/~alexwennerberg/gourami-social/tree/maste
 ## Dependencies:
 
 * sqlite3
-* sqlite3-dev
+* libsqlite3-dev
+* openssl
 
 ## Installation
 
