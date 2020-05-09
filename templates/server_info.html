@@ -1,13 +1,19 @@
 {% extends "base.html" %}
-
 {% block content %}
 <div class="text-block padded">
-  Welcome to the alpha instance of Gourami! Expect many changes in the future. Right now, all notes are on a shared timeline visible to all users on this instance. I welcome feedback and feature requests. Please let me know if you encounter any bugs!
-  <br>
-  Check out <a href="https://github.com/alexwennerberg/gourami/blob/master/PHILOSOPHY.md">this document</a> where I discuss some of the design principles and goals of Gourami.
-  <br>
-  This instance is invite-only. Contact me to get an invite URL if you want to invite someone. Posts are not visible except to users on this instance, unless they are shared with the "neighborhood", the network of users and other servers networked with this server. Here is a list of those servers: (TBD)
-  <br>
-  Contact email: <a href="mailto:alex@alexwennerberg.com">alex@alexwennerberg.com</a> or <a href="/user/alex">message me</a> on Gourami.
+  Welcome to Gourami, an intentionally small, private, minimalist, invite-only social network. See the <a href="https://github.com/alexwennerberg/gourami/blob/master/docs/USER_GUIDE.md">user guide</a> for more info or look at the <a href="https://github.com/alexwennerberg/gourami">project page</a>! Here is a list of users on this server -- maybe introduce yourself to someone you don't know! By default your email is not shared, but you can share it to other users on this instance on your edit user page.
+<br>
+<table>
+<tr>
+  <th>username</th>
+  <th>bio</th>
+</tr>
+{% for user in users %}
+<tr>
+  <td><a href="/user/{{user.username}}">{{user.username}}</a> {%if user.admin %}<em>admin</em>{%endif%}</td>
+  <td>{{user.bio}}</td>
+</tr>
+{% endfor %}
 </div>
+</table>
 {% endblock %}

@@ -107,14 +107,19 @@ struct RegisterTemplate<'a> {
 #[template(path = "server_info.html")]
 struct ServerInfoTemplate<'a> {
     global: Global<'a>,
+    users: Vec<User>,
 }
+
+const PAGE_SIZE: i64 = 50; 
 
 struct Global<'a> {
     // variables used on all pages w header
     title: &'a str,
     page: &'a str,
+    page_num: i64,
     page_title: &'a str,
     me: User,
+    has_more: bool,
     logged_in: bool,
     unread_notifications: i64, // db query on every page
 }
@@ -154,8 +159,10 @@ impl<'a> Default for Global<'a> {
             title: "gourami", // todo set with config
             me: User::default(),
             page: "",
+            page_num: 1,
             page_title: "",
             logged_in: false,
+            has_more: false,
             unread_notifications: 0,
         }
     }
@@ -191,7 +198,7 @@ fn delete_note(note_id: i32) -> Result<(), Box<dyn std::error::Error>> {
 struct NewNoteRequest {
     note_input: String, // has to be String
     redirect_url: String,
-    neighborhood: Option<String>, // "on"
+    neighborhood: Option<String>, // "on" TODO -- add a custom serialization here
 }
 
 async fn handle_new_note_form(u: Option<User>, f: NewNoteRequest) -> Result<impl Reply, Rejection> {
@@ -419,7 +426,7 @@ fn do_logout(cook: String) -> impl Reply {
 #[derive(Deserialize)]
 struct GetPostsParams {
     #[serde(default = "default_page")]
-    page_num: i64,
+    page: i64,
     user_id: Option<i32>,
 }
 fn default_page() -> i64 {
@@ -429,7 +436,7 @@ fn default_page() -> i64 {
 impl Default for GetPostsParams {
     fn default() -> Self {
         GetPostsParams {
-            page_num: 1,
+            page: 1,
             user_id: None,
         }
     }
@@ -472,6 +479,13 @@ fn get_single_note(note_id: i32) -> Option<Vec<UserNote>> {
     )
 }
 
+fn get_users() -> Result<Vec<User>, diesel::result::Error> {
+    use db::schema::users::dsl as u;
+    let conn = &POOL.get().unwrap();
+    let users = u::users.load(conn);
+    users
+}
+
 /// We have to do a join here
 fn get_notes(
     params: GetPostsParams,
@@ -479,12 +493,12 @@ fn get_notes(
 ) -> Result<Vec<UserNote>, diesel::result::Error> {
     use db::schema::notes::dsl as n;
     use db::schema::users::dsl as u;
-    const PAGE_SIZE: i64 = 250;
+    // TODO -- add whether this is complete so i can page properly
     let mut query = n::notes
         .inner_join(u::users)
         .order(n::id.desc())
         .limit(PAGE_SIZE)
-        .offset((params.page_num - 1) * PAGE_SIZE)
+        .offset((params.page - 1) * PAGE_SIZE)
         .into_boxed();
     if let Some(u_id) = params.user_id {
         query = query.filter(u::id.eq(u_id));
@@ -519,7 +533,8 @@ fn render_notifications(auth_user: Option<User>) -> impl Reply {
         .inner_join(nv::notification_viewers)
         .order(n::id.desc())
         .filter(nv::user_id.eq(my_id))
-        .limit(1000) // arbitrary TODO cleanup / paginate
+        .limit(100) // NOTE -- if you have 100 unread notifications this will cause issues
+        // older notifications wont be seen
         .load::<(Notification, NotificationViewer)>(conn)
         .unwrap()
         .into_iter()
@@ -550,14 +565,20 @@ fn render_timeline(
 ) -> impl Reply {
     // no session -- anonymous
     // pulls a bunch of data i dont really need
-    let header = Global::create(auth_user, url_path.as_str());
+    let mut header = Global::create(auth_user, url_path.as_str());
+    header.page_num = params.page;
     // TODO -- ignore neighborhood replies
     let notes = get_notes(params, Some(false));
     match notes {
-        Ok(n) => render_template(&TimelineTemplate {
+        Ok(n) => {
+            // NOTE -- breaks when  exactly 50 notes
+            if n.len() == PAGE_SIZE as usize {
+                header.has_more = true;
+            }
+            render_template(&TimelineTemplate {
             global: header,
             notes: n,
-        }),
+        })},
         _ => render_template(&ErrorTemplate {
             global: header,
             error_message: "Could not fetch notes",
@@ -596,8 +617,10 @@ impl<'a> Default for ErrorTemplate<'a> {
 }
 
 fn server_info_page(auth_user: Option<User>) -> impl Reply {
+    let users = get_users().unwrap();
     render_template(&ServerInfoTemplate {
         global: Global::create(auth_user, "/server"),
+        users: users
     })
 }
 
@@ -622,7 +645,8 @@ fn user_page(
     mut params: GetPostsParams,
     path: FullPath,
 ) -> impl Reply {
-    let header = Global::create(auth_user, path.as_str()); // maybe if i'm clever i can abstract this away
+    let mut header = Global::create(auth_user, path.as_str()); // maybe if i'm clever i can abstract this away
+    header.page_num = params.page;
     use db::schema::users::dsl::*;
     let conn = &POOL.get().unwrap();
     let user: Option<User> = users
@@ -632,6 +656,10 @@ fn user_page(
     if let Some(u) = user {
         params.user_id = Some(u.id);
         let notes = get_notes(params, None).unwrap();
+        // NOTE -- breaks when  exactly 50 notes
+        if notes.len() == PAGE_SIZE as usize {
+            header.has_more = true;
+        }
         render_template(&UserTemplate {
             global: header,
             user: u.clone(), // TODO stop cloning
@@ -684,7 +712,9 @@ pub fn post_inbox(message: Value) -> impl Reply {
 #[derive(Deserialize)]
 struct EditForm {
     redirect_url: String,
-    bio: Option<String>,
+    bio: String,
+    show_email: Option<String>,
+    email: String,
 }
 
 fn edit_user(user: Option<User>, user_name: String, f: EditForm) -> impl Reply {
@@ -693,7 +723,7 @@ fn edit_user(user: Option<User>, user_name: String, f: EditForm) -> impl Reply {
     if u.username == user_name || u.admin {
         use db::schema::users::dsl::*;
         diesel::update(users.find(u.id))
-            .set(bio.eq(&f.bio.unwrap_or(String::new())))
+            .set((bio.eq(&f.bio), email.eq(&f.email), show_email.eq(&f.show_email.is_some())))
             .execute(conn)
             .unwrap();
     }

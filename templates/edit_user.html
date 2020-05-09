@@ -3,8 +3,25 @@
 <form method="POST" action="/user/{{user.username}}/edit">
 <b>user:</b> {{ user.username }} (#{{user.id}})
 <br>
-<label for="bio"><b>bio:<b></label>
-<input type="text" id="bio" name="bio">
+<label for="bio"><b>bio:</b></label>
+<input type="text" id="bio" name="bio" value="{{user.bio}}">
+<br>
+<label for="email"><b>email:</b></label>
+<input type="text" id="email" name="email" value=
+{% match user.email %}
+  {%when Some with (e) %}
+  "{{e}}">
+  {% when None %}
+  "">
+{%endmatch%}
+<br>
+<label for="show_email"><b>show_email?</b></label>
+<input type="checkbox" id="show_email" name="show_email"
+{% if user.show_email %}
+checked>
+{% else %}
+unchecked>
+{% endif %}
 <input type="hidden" name="redirect_url" value="/user/{{user.username}}">
 <br>
 <button id="post" class="submit-button-style">submit</button>

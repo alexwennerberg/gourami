@@ -7,16 +7,17 @@
   <div class="note-meta">
   {% if note.note.neighborhood %}🏠{%endif%}
   {% if note.note.is_remote %}🌎{%endif%}
-  <a href="/note/{{note.note.id}}">📝{{note.note.id}}</a> {{note.note.created_time}} <a
+  <a href="/note/{{note.note.id}}">📝{{note.note.id}}</a>
+  {{note.note.created_time}} <a
     class="bold" href="/user/{{note.username}}">@{{note.username}}</a>
 {% if global.logged_in  %}
-<a href="#" onclick="reply({{note.note.id}}, '{{note.username}}')">↪</a>
+<a title="reply" href="#" onclick="reply({{note.note.id}}, '{{note.username}}')">↪</a>
   {% endif %}
   {% if note.note.user_id == global.me.id %} 
   <form method="post" action="/delete_note" class="inline">
     <input type="hidden" name="note_id" value="{{note.note.id}}">
     <input type="hidden" name="redirect_url" value="{{global.page}}">
-        <button type="submit" name="submit_param" value="submit_value"
+        <button type="submit" title="delete note" name="submit_param" value="submit_value"
           class="link-button">✕</button>
    </form>
    {%endif%}

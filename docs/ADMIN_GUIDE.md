@@ -17,6 +17,11 @@ Gourami is built for small deployments -- I have not tested it or designed it fo
 
 I'm not big into formal rules or codes of context, but if you feel like that's important for your server, you may want to put it in your server message.
 
+## Customizing Gourami
+
+You may want to customize parts of Gourami, such as the CSS format or server message. Right now, html templates are compiled into the binary. In retrospect, it might have been a better idea to use a templating engine that is rendered at runtime. If you want to customize the html, you'll have to edit the file and recompile. I may move towards a different templating library at some point.
+
+
 ## Securing your server
 
 I would recommend following basic Linux syadmin best practices: disable password login, consider a hardened Linux distro, set up a firewall, etc. I'm not a security expert here, I would recommend following guides produced by those who are.
@@ -30,3 +35,12 @@ I would recommend following basic Linux syadmin best practices: disable password
 ## Passwordless local deployment
 
 Don't do this on the public internet, it is a bad idea and will only lead to ruin! Seriously, don't do it.
+
+## Federation
+
+ActivityPub varies across servers. Some functionality may not work with other AP servers. Examples of things that may break include:
+
+* HTML tags that aren't supported getting sanitized
+* A different key algorithm being used for HTML signatures
+* Custom service-specific activitypub features
+* AP features supported by their server but not Gourami (Gourami is extremely limited in its interpretation of ActivityPub)

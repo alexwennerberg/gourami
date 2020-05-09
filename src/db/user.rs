@@ -49,6 +49,7 @@ pub struct User {
     pub created_time: String,
     pub password: Option<String>,
     pub admin: bool,
+    pub show_email: bool,
     pub remote_url: Option<String>,
 }
 

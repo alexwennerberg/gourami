@@ -28,6 +28,7 @@ table! {
         created_time -> Timestamp,
         password -> Nullable<Varchar>,
         admin -> Bool,
+        show_email -> Bool,
         remote_url -> Nullable<Varchar>,
     }
 }
