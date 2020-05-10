@@ -1,0 +1,31 @@
+---
+- hosts: all
+  remote_user: root
+  become: yes
+  tasks:
+    - name: install dependencies
+      apt:
+        pkg:
+          - sqlite3
+          - libsqlite3-dev
+    - name: copy binary over
+      copy:
+        src: ../target/release/gourami_social
+        dest: /home/gourami/gourami_social # TODO template etc
+        owner: gourami
+    - name: copy env over
+      copy:
+        src: prod_dotenv # distinguish dev/prod
+        dest: /home/gourami/.env
+    - name: copy service over
+      copy:
+        src: gourami.service
+        dest: /etc/systemd/system/gourami.service
+    - name: stop gourami service, if running
+      systemd:
+        name: gourami
+        state: stopped
+    - name: start gourami service
+      systemd:
+        name: gourami
+        state: started

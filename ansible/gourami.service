@@ -1,0 +1,13 @@
+[Unit]
+Description=Gourami service
+After=network.target
+
+[Service]
+Type=simple
+Restart=always
+User=root
+WorkingDirectory=/home/gourami
+ExecStart=/home/gourami/gourami_social run
+
+[Install]
+WantedBy=multi-user.target
