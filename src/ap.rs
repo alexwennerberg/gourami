@@ -90,8 +90,10 @@ pub fn process_create_note(
     // TODO inbox forwarding https://www.w3.org/TR/activitypub/#inbox-forwarding
     //
     let conn = &POOL.get().unwrap();
+    // Get actor
     let object = v.get("object").ok_or("No object found")?;
     let _type = object.get("type").ok_or("No object type found")?;
+    // match type == note
     let content = object
         .get("content")
         .ok_or("No content found")?
@@ -267,7 +269,7 @@ pub fn new_note_to_ap_message(note: &NoteInput, user: &User) -> Value {
         "@context": "https://www.w3.org/ns/activitystreams",
         "id": "someid",
         "type": "Create",
-        "actor": "my_server/actor", // get from DEPLOY_URL
+        "actor": server_actor(), // get from DEPLOY_URL
         "published": "now",
         "to": [
             "destination.server"
@@ -277,7 +279,7 @@ pub fn new_note_to_ap_message(note: &NoteInput, user: &User) -> Value {
             "type": "note",
             "url": "abc",
             "inReplyTo": "none",
-            "attributedTo": user.username,
+            "attributedTo": "a remote user",
             "content": note.content
         }
     })

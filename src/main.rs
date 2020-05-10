@@ -9,24 +9,20 @@ async fn main() {
         .author("Alex Wennerberg <alex@alexwennerberg.com>")
         .about("Gourami server and admin tools")
         .subcommand(App::new("run").about("Run server"))
-        .subcommand(App::new("admin").about("Admin Tools")
-                    .subcommand(App::new("follow")
-                                .arg(Arg::with_name("URL")
-                                     .help("url of the remote server to follow")
-                                     .required(true)
-                                     .index(1)
-                                     )
-                                )
+        .subcommand(App::new("follow")
+                    .arg(Arg::with_name("URL")
+                         .help("url of the remote server to follow")
+                         .required(true)
+                         .index(1)
+                         )
                     )
         .get_matches();
     if let Some(m) = matches.subcommand_matches("run") {
         run_server().await;
-    } else if let Some(m) = matches.subcommand_matches("admin") {
-        if let Some(m) = m.subcommand_matches("follow") {
+    } else if let Some(m) = matches.subcommand_matches("follow") {
             let url = m.value_of("URL").unwrap();
             ap::follow_remote_server(url).await.unwrap();
-        }
+    }
         // reset password
         // follow remote
-    }
 }
