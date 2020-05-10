@@ -2,5 +2,8 @@
 test_env
 sample.db
 warp-diesel-ructe-sample/
-.env
 /local
+
+# env vars
+.env
+ansible/prod_dotenv

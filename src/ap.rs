@@ -29,10 +29,30 @@ use std::path::Path;
 /// as I can make it!
 use std::fs;
 
-// TODO figure out how to get static working
-fn server_actor() -> String {
-    return format!("http://{}/actor", &env::var("GOURAMI_DOMAIN").unwrap());
+fn domain_url() -> String {
+    if &env::var("SSL_ENABLED").unwrap() ==  "1" {
+        return format!("https://{}", &env::var("GOURAMI_DOMAIN").unwrap());
+    }
+    return format!("http://{}", &env::var("GOURAMI_DOMAIN").unwrap());
 }
+
+struct ServerApData {
+    actor: String,
+    global_id: String,
+    key_id: String,
+    inbox: String
+}
+
+lazy_static! {
+    // TODO -- learn this a little better so it isnt so redundant
+    static ref SERVER: ServerApData = ServerApData {
+        actor: format!("{}/actor", domain_url()),
+        global_id: format!("{}/", domain_url()),
+        key_id: format!("{}/actor#key", domain_url()),
+        inbox: format!("{}/inbox", domain_url())};
+}
+
+// TODO figure out how to get static working
 
 // ActivityPub outbox
 fn send_to_outbox(activity: bool) {
@@ -56,10 +76,7 @@ enum Action {
 pub fn server_actor_json() -> Value {
     // TODO figure out how to get lazy static working
     // TODO use ap library
-    let DOMAIN: &str = &env::var("GOURAMI_DOMAIN").unwrap();
-    let server_inbox: &str = &format!("http://{}/inbox", DOMAIN);
-    let SERVER_KEY_ID: &str = &format!("{}#key", server_actor());
-    let SERVER_PUBLIC_KEY: &str =
+    let AP_PUBLIC_KEY: &str =
         &fs::read_to_string(env::var("SIGNATURE_PUBKEY_PEM").unwrap()).unwrap();
     json!({
     "@context": [
@@ -67,14 +84,14 @@ pub fn server_actor_json() -> Value {
         "https://w3id.org/security/v1"
     ],
 
-    "id": server_actor(),
+    "id": SERVER.global_id,
     "type": "Organization", // application?
-    "preferredUsername": DOMAIN, // think about it
-    "inbox": server_inbox,
+    "preferredUsername": domain_url(), // think about it
+    "inbox": SERVER.inbox,
     "publicKey": {
-        "id": SERVER_KEY_ID,
-        "owner": server_actor(),
-        "publicKeyPem": SERVER_PUBLIC_KEY
+        "id": SERVER.key_id,
+        "owner": SERVER.actor,
+        "publicKeyPem": SERVER.key_id
     }})
 }
 
@@ -202,7 +219,7 @@ pub async fn process_follow(v: Value) -> Result<(), reqwest::Error> {
         "@context": "https://www.w3.org/ns/activitystreams",
         "id": "https://my-example.com/my-first-accept",
         "type": "Accept",
-        "actor": server_actor(),
+        "actor": SERVER.actor,
         "object": &v,
         });
      send_ap_message(&accept, vec![actor_inbox.to_string()]).await.unwrap();
@@ -252,7 +269,7 @@ fn generate_server_follow(remote_url: &str) -> Value {
         "@context": "https://www.w3.org/ns/activitystreams",
         "id": "https://my-example.com/my-first-follow",
         "type": "Follow",
-        "actor": server_actor(),
+        "actor": SERVER.actor,
         "object": remote_url,
     });
     use crate::db::schema::server_mutuals::dsl::*;
@@ -269,7 +286,7 @@ pub fn new_note_to_ap_message(note: &NoteInput, user: &User) -> Value {
         "@context": "https://www.w3.org/ns/activitystreams",
         "id": "someid",
         "type": "Create",
-        "actor": server_actor(), // get from DEPLOY_URL
+        "actor": SERVER.actor,
         "published": "now",
         "to": [
             "destination.server"

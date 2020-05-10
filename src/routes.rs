@@ -134,8 +134,8 @@ pub async fn run_server() {
         .recover(handle_rejection)
         .boxed();
     env_logger::init();
-    match std::env::var("GOURAMI_ENV").unwrap().as_str() {
-        "PROD" => {
+    match std::env::var("SSL_ENABLED").unwrap().as_str() {
+        "1" => {
             warp::serve(routes)
                 .tls()
                 .cert_path(&std::env::var("CERT_PATH").unwrap())
