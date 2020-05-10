@@ -32,6 +32,9 @@ I would recommend following basic Linux syadmin best practices: disable password
 
 ## Federation -- the "neighborhood"
 
+Use the admin command follow to follow a server.
+That server must accept your follow, then follow you back in order to be in the neighborhood. There is no one-way following in gourami, we (ab)use the AP standard to force mutual follows
+
 ## Passwordless local deployment
 
 Don't do this on the public internet, it is a bad idea and will only lead to ruin! Seriously, don't do it.

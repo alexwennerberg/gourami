@@ -8,3 +8,4 @@ export GOURAMI_DOMAIN="localhost:3030"
 # used for http signatures
 export SIGNATURE_PRIVKEY="local/private.pk8"
 export SIGNATURE_PUBKEY="local/public.der"
+export SIGNATURE_PUBKEY_PEM="local/public.pem"

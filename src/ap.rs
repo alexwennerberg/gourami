@@ -1,21 +1,23 @@
-use ring::digest;
-use ring::signature::UnparsedPublicKey;
-use std::path::Path;
-use base64;
 use crate::db::conn::POOL;
 use crate::db::note::{NoteInput, RemoteNoteInput};
 use crate::db::user::{NewRemoteUser, User};
+use crate::db::server_mutuals::{NewServerMutual, ServerMutual};
+use base64;
+use chrono::{Duration, Utc};
 use diesel::insert_into;
-use openssl::rsa::Rsa;
 use diesel::prelude::*;
 use diesel::sqlite::SqliteConnection;
+use http_signature_normalization::Config;
+use openssl::rsa::Rsa;
+use reqwest::Request;
+use ring::digest;
+use ring::signature::UnparsedPublicKey;
+use serde::{Deserialize, Serialize};
 use serde_json::json;
 use serde_json::Value;
-use std::env;
 use std::collections::BTreeMap;
-use reqwest::Request;
-use chrono::{Duration, Utc};
-use http_signature_normalization::{Config};
+use std::env;
+use std::path::Path;
 
 /// Users don't follow users in Gourami. Instead the server does hte following
 /// There are a number of reasons for this:
@@ -26,8 +28,10 @@ use http_signature_normalization::{Config};
 /// This is a somewhat eccentric activitypub implementation, but it is as consistent with the spec
 /// as I can make it!
 use std::fs;
-lazy_static! {
-    // const SERVER_ACTOR = "gourami.social"
+
+// TODO figure out how to get static working
+fn server_actor() -> String {
+    return format!("http://{}/actor", &env::var("GOURAMI_DOMAIN").unwrap());
 }
 
 // ActivityPub outbox
@@ -35,8 +39,11 @@ fn send_to_outbox(activity: bool) {
     // activitystreams object fetch/store from db.  db objects need to serialize/deserialize this object if get -> fetch from db if post -> put to db, send to inbox of followers send to inbox of followers
 }
 
-fn verify_incoming_message() {
+// build something like this
+struct ActivityPubMessage {
 }
+
+fn verify_incoming_message() {}
 
 enum Action {
     CreateNote,
@@ -44,27 +51,29 @@ enum Action {
     // DeleteNote
 }
 
+
 /// get the server user json
 pub fn server_actor_json() -> Value {
     // TODO figure out how to get lazy static working
+    // TODO use ap library
     let DOMAIN: &str = &env::var("GOURAMI_DOMAIN").unwrap();
-    let SERVER_ACTOR: &str = &format!("http://{}/actor", DOMAIN);
-    let SERVER_INBOX: &str = &format!("http://{}/inbox", DOMAIN);
-    let SERVER_KEY_ID: &str = &format!("{}#key", SERVER_ACTOR);
-    let SERVER_PUBLIC_KEY: &str = &fs::read_to_string(env::var("SIGNATURE_PUBKEY").unwrap()).unwrap();
+    let server_inbox: &str = &format!("http://{}/inbox", DOMAIN);
+    let SERVER_KEY_ID: &str = &format!("{}#key", server_actor());
+    let SERVER_PUBLIC_KEY: &str =
+        &fs::read_to_string(env::var("SIGNATURE_PUBKEY_PEM").unwrap()).unwrap();
     json!({
     "@context": [
         "https://www.w3.org/ns/activitystreams",
         "https://w3id.org/security/v1"
     ],
 
-    "id": SERVER_ACTOR,
+    "id": server_actor(),
     "type": "Organization", // application?
     "preferredUsername": DOMAIN, // think about it
-    "inbox": SERVER_INBOX,
+    "inbox": server_inbox,
     "publicKey": {
         "id": SERVER_KEY_ID,
-        "owner": SERVER_ACTOR,
+        "owner": server_actor(),
         "publicKeyPem": SERVER_PUBLIC_KEY
     }})
 }
@@ -74,12 +83,13 @@ fn categorize_input_message(v: Value) -> Action {
 }
 
 pub fn process_create_note(
-    conn: &SqliteConnection,
     v: Value,
 ) -> Result<(), Box<dyn std::error::Error>> {
     // Actions usually associated with notes
     // maybe there's a cleaner way to do this. cant iterate over types
     // TODO inbox forwarding https://www.w3.org/TR/activitypub/#inbox-forwarding
+    //
+    let conn = &POOL.get().unwrap();
     let object = v.get("object").ok_or("No object found")?;
     let _type = object.get("type").ok_or("No object type found")?;
     let content = object
@@ -116,14 +126,14 @@ pub fn process_create_note(
         username: String::from(remote_creator),
         remote_url: Some(String::from(remote_creator)),
     };
-    //
+
     insert_into(u::users).values(&new_user).execute(conn).ok(); // TODO only check unique constraint error
 
+    // last insert id
     let new_user_id: i32 = u::users
         .select(u::id)
         .filter(u::remote_url.eq(remote_creator))
-        .first(conn)
-        .unwrap();
+        .first(conn)?;
 
     let new_remote_note = RemoteNoteInput {
         content: String::from(content),
@@ -143,37 +153,110 @@ pub fn process_create_note(
     return Ok(());
 }
 
+pub async fn process_accept(v: Value) -> Result<(), reqwest::Error> {
+    let actor: &str = v.get("actor").unwrap().as_str().unwrap();
+    let remote_actor: Value = reqwest::get(actor).await?.json().await?;
+    let actor_inbox = remote_actor.get("inbox").unwrap().as_str().unwrap();
+    set_mutual_accepted(actor_inbox);
+    Ok(())
+}
+
+fn set_mutual_accepted (actor_inbox: &str) {
+    use crate::db::schema::server_mutuals::dsl::*;
+    let conn = &POOL.get().unwrap();
+    diesel::update(server_mutuals)
+        .filter(inbox_url.eq(actor_inbox))
+        .set(accepted.eq(true))
+        .execute(conn).unwrap();
+}
+
+// TODO clean this up 
+fn set_mutual_followed_back (actor_inbox: &str) {
+    use crate::db::schema::server_mutuals::dsl::*;
+    let conn = &POOL.get().unwrap();
+    diesel::update(server_mutuals)
+        .filter(inbox_url.eq(actor_inbox))
+        .set(followed_back.eq(true))
+        .execute(conn).unwrap();
+}
+
+fn should_accept(actor_inbox: &str) -> bool {
+    use crate::db::schema::server_mutuals::dsl::*;
+    let conn = &POOL.get().unwrap();
+    let sent_req: bool = server_mutuals.select(inbox_url).filter(inbox_url.eq(actor_inbox)).first::<String>(conn).is_ok();
+    sent_req
+}
+
+pub async fn process_follow(v: Value) -> Result<(), reqwest::Error> {
+    let actor: &str = v.get("actor").unwrap().as_str().unwrap();
+    let remote_actor: Value = reqwest::get(actor).await?.json().await?;
+    let actor_inbox = remote_actor.get("inbox").unwrap().as_str().unwrap();
+    let sent_req = should_accept(actor_inbox);
+    debug!("Should server accept the request? {}", sent_req);
+    if sent_req {
+        set_mutual_followed_back(actor_inbox);
+    // send accept follow
+     let accept = json!({
+        "@context": "https://www.w3.org/ns/activitystreams",
+        "id": "https://my-example.com/my-first-accept",
+        "type": "Accept",
+        "actor": server_actor(),
+        "object": &v,
+        });
+     send_ap_message(&accept, vec![actor_inbox.to_string()]).await.unwrap();
+    }
+    Ok(())
+    // generate accept
+}
+
 pub fn get_destinations() -> Vec<String> {
     // maybe lazy static this
     use crate::db::schema::server_mutuals::dsl::*;
     let conn = &POOL.get().unwrap();
-    server_mutuals.select(inbox_url).load(conn).unwrap()
+    server_mutuals.select(inbox_url)
+        .filter(accepted.eq(true))
+        .filter(followed_back.eq(true)).load(conn).unwrap()
 }
 
 pub async fn send_ap_message(
     ap_message: &Value,
-    destinations: Vec<String>,
+    destinations: Vec<String>, // really vec of URLs
 ) -> Result<(), reqwest::Error> {
     // Right now we have only once delivery
     for destination in destinations {
         let client = reqwest::Client::new();
-        client.post(&destination).json(&ap_message).send().await?;
+        client
+            .post(&destination)
+            .header("date", Utc::now().to_rfc2822())
+            .json(&ap_message)
+            .header("Content-Type", "application/activity+json")
+            .send()
+            .await?;
     }
     Ok(())
 }
 
-fn follow_remote_server(remote_url: String) {
-    // create follow request
+pub async fn follow_remote_server(remote_url: &str) -> Result<(), reqwest::Error> {
+    let remote_actor: Value = reqwest::get(remote_url).await?.json().await?;
+    let inbox_url = remote_actor.get("inbox").unwrap().as_str().unwrap();
+    let msg = generate_server_follow(inbox_url);
+    send_ap_message(&msg, vec![inbox_url.to_owned()]).await?;
+    Ok(())
 }
 
-fn generate_server_follow(remote_url: String) -> Value {
-    json!({
+fn generate_server_follow(remote_url: &str) -> Value {
+    let conn = &POOL.get().unwrap();
+    let res = json!({
         "@context": "https://www.w3.org/ns/activitystreams",
         "id": "https://my-example.com/my-first-follow",
         "type": "Follow",
-        "actor": "https://my-example.com/actor",
+        "actor": server_actor(),
         "object": remote_url,
-    })
+    });
+    use crate::db::schema::server_mutuals::dsl::*;
+    insert_into(server_mutuals).values(NewServerMutual{inbox_url: remote_url.to_owned()}).execute(conn).unwrap();
+    res
+
 }
 
 /// Generate an AP create message from a new note
@@ -220,9 +303,12 @@ impl HttpSignature for reqwest::RequestBuilder {
     fn http_sign_outgoing(self) -> Result<reqwest::RequestBuilder, Box<dyn std::error::Error>> {
         // try and remove clone here
         let req = self.try_clone().unwrap().build().unwrap();
-        let config = Config::default().set_expiration(Duration::seconds(3600)).dont_use_created_field();
-        // let server_key_id = 
-        let server_key_id: &str = &format!("http://{}/actor#key", &env::var("GOURAMI_DOMAIN").unwrap());
+        let config = Config::default()
+            .set_expiration(Duration::seconds(3600))
+            .dont_use_created_field();
+        // let server_key_id =
+        let server_key_id: &str =
+            &format!("http://{}/actor#key", &env::var("GOURAMI_DOMAIN").unwrap());
         let mut bt = std::collections::BTreeMap::new();
         for (k, v) in req.headers().iter() {
             bt.insert(k.as_str().to_owned(), v.to_str()?.to_owned());
@@ -234,18 +320,27 @@ impl HttpSignature for reqwest::RequestBuilder {
         };
         let unsigned = config.begin_sign(req.method().as_str(), &path_and_query, bt)?;
         println!("{:?}", &unsigned);
-        let sig_header = unsigned.sign(server_key_id.to_owned(), |signing_string| {
-            let private_key =  read_file(Path::new(&env::var("SIGNATURE_PRIVKEY").unwrap()));
-            let key_pair = ring::signature::RsaKeyPair::from_pkcs8(&private_key.unwrap()).unwrap();
-            let rng = ring::rand::SystemRandom::new();
-            let mut signature = vec![0; key_pair.public_modulus_len()];
-            key_pair.sign(&ring::signature::RSA_PKCS1_SHA256, &rng, signing_string.as_bytes(), &mut signature).unwrap();
-             // let digest = digest::digest(&digest::SHA256, &signing_string.as_bytes());
-             println!("{:?}", &signing_string);
-             let hexencode = base64::encode(&signature);
-             Ok(hexencode) as Result<_, Box<dyn std::error::Error>>
-        })?
-        .signature_header();
+        let sig_header = unsigned
+            .sign(server_key_id.to_owned(), |signing_string| {
+                let private_key = read_file(Path::new(&env::var("SIGNATURE_PRIVKEY").unwrap()));
+                let key_pair =
+                    ring::signature::RsaKeyPair::from_pkcs8(&private_key.unwrap()).unwrap();
+                let rng = ring::rand::SystemRandom::new();
+                let mut signature = vec![0; key_pair.public_modulus_len()];
+                key_pair
+                    .sign(
+                        &ring::signature::RSA_PKCS1_SHA256,
+                        &rng,
+                        signing_string.as_bytes(),
+                        &mut signature,
+                    )
+                    .unwrap();
+                // let digest = digest::digest(&digest::SHA256, &signing_string.as_bytes());
+                println!("{:?}", &signing_string);
+                let hexencode = base64::encode(&signature);
+                Ok(hexencode) as Result<_, Box<dyn std::error::Error>>
+            })?
+            .signature_header();
         // this SHOULD be OK
         // host and date?
         println!("{:?}", &sig_header);
@@ -255,70 +350,84 @@ impl HttpSignature for reqwest::RequestBuilder {
     }
 }
 
-fn sign_and_verify_rsa(private_key_path: &std::path::Path,
-public_key_path: &std::path::Path)
--> Result<(), MyError> {
+fn sign_and_verify_rsa(
+    private_key_path: &std::path::Path,
+    public_key_path: &std::path::Path,
+) -> Result<(), MyError> {
     use ring::{rand, signature};
-// Create an `RsaKeyPair` from the DER-encoded bytes. This example uses
-// a 2048-bit key, but larger keys are also supported.
-let private_key_der = read_file(private_key_path)?;
-let key_pair = signature::RsaKeyPair::from_pkcs8(&private_key_der)
-.map_err(|_| MyError::BadPrivateKey)?;
+    // Create an `RsaKeyPair` from the DER-encoded bytes. This example uses
+    // a 2048-bit key, but larger keys are also supported.
+    let private_key_der = read_file(private_key_path)?;
+    let key_pair =
+        signature::RsaKeyPair::from_pkcs8(&private_key_der).map_err(|_| MyError::BadPrivateKey)?;
 
-// Sign the message "hello, world", using PKCS#1 v1.5 padding and the
-// SHA256 digest algorithm.
-const MESSAGE: &'static [u8] = b"hello, world";
-let rng = rand::SystemRandom::new();
-let mut signature = vec![0; key_pair.public_modulus_len()];
-key_pair.sign(&signature::RSA_PKCS1_SHA256, &rng, MESSAGE, &mut signature)
-.map_err(|_| MyError::OOM)?;
+    // Sign the message "hello, world", using PKCS#1 v1.5 padding and the
+    // SHA256 digest algorithm.
+    const MESSAGE: &'static [u8] = b"hello, world";
+    let rng = rand::SystemRandom::new();
+    let mut signature = vec![0; key_pair.public_modulus_len()];
+    key_pair
+        .sign(&signature::RSA_PKCS1_SHA256, &rng, MESSAGE, &mut signature)
+        .map_err(|_| MyError::OOM)?;
 
-// Verify the signature.
-let public_key =
-signature::UnparsedPublicKey::new(&signature::RSA_PKCS1_2048_8192_SHA256,
-               read_file(public_key_path)?);
-public_key.verify(MESSAGE, &signature)
-.map_err(|_| MyError::BadSignature)
+    // Verify the signature.
+    let public_key = signature::UnparsedPublicKey::new(
+        &signature::RSA_PKCS1_2048_8192_SHA256,
+        read_file(public_key_path)?,
+    );
+    public_key
+        .verify(MESSAGE, &signature)
+        .map_err(|_| MyError::BadSignature)
 }
 
 #[derive(Debug)]
 enum MyError {
-IO(std::io::Error),
-BadPrivateKey,
-OOM,
-BadSignature,
+    IO(std::io::Error),
+    BadPrivateKey,
+    OOM,
+    BadSignature,
 }
 
 fn read_file(path: &std::path::Path) -> Result<Vec<u8>, MyError> {
-use std::io::Read;
+    use std::io::Read;
 
-let mut file = std::fs::File::open(path).map_err(|e| MyError::IO(e))?;
-let mut contents: Vec<u8> = Vec::new();
-file.read_to_end(&mut contents).map_err(|e| MyError::IO(e))?;
-Ok(contents)
+    let mut file = std::fs::File::open(path).map_err(|e| MyError::IO(e))?;
+    let mut contents: Vec<u8> = Vec::new();
+    file.read_to_end(&mut contents)
+        .map_err(|e| MyError::IO(e))?;
+    Ok(contents)
 }
-fn verify_ap_message(method: &str, path_and_query: &str, headers: BTreeMap<String,String>) {
+
+fn verify_ap_message(method: &str, path_and_query: &str, headers: BTreeMap<String, String>) {
     // TODO -- case insensitivity?
     // mastodon doesnt use created filed
-    let config = Config::default().set_expiration(Duration::seconds(3600)).dont_use_created_field();
-    println!("{:?}", config);
-    println!("{:?}", headers);
-    let unverified = config.begin_verify(method, path_and_query, headers).unwrap();
+    let config = Config::default()
+        .set_expiration(Duration::seconds(3600))
+        .dont_use_created_field();
+    let unverified = config
+        .begin_verify(method, path_and_query, headers)
+        .unwrap();
     let res = unverified.verify(|signature, signing_string| {
-        println!("{:?}", signature);
-        println!("{:?}", signing_string);
-        let res: Value = reqwest::blocking::get(unverified.key_id()).unwrap().json().unwrap();
-        let public_key: &[u8]= res.get("publicKey").unwrap().get("publicKeyPem").unwrap().as_str().unwrap().as_bytes();
+        let res: Value = reqwest::blocking::get(unverified.key_id())
+            .unwrap()
+            .json()
+            .unwrap();
+        let public_key: &[u8] = res
+            .get("publicKey")
+            .unwrap()
+            .get("publicKeyPem")
+            .unwrap()
+            .as_str()
+            .unwrap()
+            .as_bytes();
         // let public_key =  &read_file(Path::new(&env::var("SIGNATURE_PUBKEY").unwrap())).unwrap();
         let r = Rsa::public_key_from_pem(public_key).unwrap();
         let public_key = r.public_key_to_der_pkcs1().unwrap();
         let key = UnparsedPublicKey::new(&ring::signature::RSA_PKCS1_2048_8192_SHA256, &public_key);
         let hexdecode = base64::decode(signature).unwrap();
         key.verify(signing_string.as_bytes(), &hexdecode).unwrap();
-        println!("{:?}", hexdecode);
-        true});
-    println!("{:?}", res);
-    // verify unverified
+        true
+    });
     println!("{:?}", unverified);
 }
 
@@ -337,14 +446,24 @@ mod tests {
 
     #[test]
     fn test_verify_rsa() {
-        sign_and_verify_rsa(Path::new(&env::var("SIGNATURE_PRIVKEY").unwrap()), Path::new(&env::var("SIGNATURE_PUBKEY").unwrap())).unwrap()
+        sign_and_verify_rsa(
+            Path::new(&env::var("SIGNATURE_PRIVKEY").unwrap()),
+            Path::new(&env::var("SIGNATURE_PUBKEY").unwrap()),
+        )
+        .unwrap()
     }
 
     #[test]
     fn test_verify_ap_message() {
         let mut headers = BTreeMap::new();
-        headers.insert("Content-Type".to_owned(), "application/activity+json".to_owned());
-        headers.insert("date".to_owned(), "Fri, 08 May 2020 00:42:41 +0000".to_owned());
+        headers.insert(
+            "Content-Type".to_owned(),
+            "application/activity+json".to_owned(),
+        );
+        headers.insert(
+            "date".to_owned(),
+            "Fri, 08 May 2020 00:42:41 +0000".to_owned(),
+        );
         let sample = "keyId=\"http://localhost:3030/actor#key\",algorithm=\"hs2019\",headers=\"(request-target) content-type date\",signature=\"YCJ7bwIX8y6rJ9Be31wm4ZkiBqper4vGydPHc/avBRE7D7SpIfWO+aA00VQcHlAGYjNRLEWiA5SkpszW3wnAs5JzuRWK01pELsEluYyE54/ou+rc06DxPt9beb9mIrbPs9EByN6epkYAGuKna8xoE7qsjhpfz5Q0SfNP3qS10uLaP5/puFCxMVgDIb3wMiJz1WiCzWZ26e5Wujoea8l5HS37V4xYhqicXmTvU1SzEiC+Qsn3RteWTesItAEDID5CFOhFizkSvgYVNjpTMwbLf1QiqyfgctVQIYt4fuQSTlcdKjhpS1cAxKTJg5hFQ9vjo1Qm1NP6XBALcRWpAIw5SA==\"";
         headers.insert("signature".to_owned(), sample.to_owned());
         verify_ap_message("post", "/inbox", headers);
@@ -359,7 +478,8 @@ mod tests {
             .header("date", Utc::now().to_rfc2822())
             .json(&body)
             .header("Content-Type", "application/activity+json")
-            .http_sign_outgoing().unwrap();
+            .http_sign_outgoing()
+            .unwrap();
     }
 
     #[test]

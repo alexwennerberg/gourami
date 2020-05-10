@@ -31,7 +31,7 @@ use hyper;
 use serde::Deserialize;
 use session::Session;
 
-mod ap;
+pub mod ap;
 mod db;
 pub mod routes;
 mod session;
@@ -110,7 +110,7 @@ struct ServerInfoTemplate<'a> {
     users: Vec<User>,
 }
 
-const PAGE_SIZE: i64 = 50; 
+const PAGE_SIZE: i64 = 50;
 
 struct Global<'a> {
     // variables used on all pages w header
@@ -576,9 +576,10 @@ fn render_timeline(
                 header.has_more = true;
             }
             render_template(&TimelineTemplate {
-            global: header,
-            notes: n,
-        })},
+                global: header,
+                notes: n,
+            })
+        }
         _ => render_template(&ErrorTemplate {
             global: header,
             error_message: "Could not fetch notes",
@@ -620,7 +621,7 @@ fn server_info_page(auth_user: Option<User>) -> impl Reply {
     let users = get_users().unwrap();
     render_template(&ServerInfoTemplate {
         global: Global::create(auth_user, "/server"),
-        users: users
+        users: users,
     })
 }
 
@@ -701,10 +702,18 @@ pub fn get_outbox() {}
 
 // pub fn user_following(user_name: String) {}
 
-pub fn post_inbox(message: Value) -> impl Reply {
+pub async fn post_inbox(message: Value) -> Result<impl Reply, Infallible>  {
     // TODO check if it is a create note message
-    let conn = &POOL.get().unwrap();
-    ap::process_create_note(conn, message).unwrap();
+    //
+    // ap::verify_ap_message("POST","/index")
+    let msg_type = message.get("type").unwrap().as_str().unwrap();
+    debug!("Received ActivityPub message of type {}", msg_type); // TODO improve logging
+    match msg_type {
+         "Create" => ap::process_create_note(message).unwrap(),
+         "Follow" => ap::process_follow(message).await.unwrap(),
+         "Accept" => ap::process_accept(message).await.unwrap(),
+        _ => ()
+    }
     // thtas it!
     Ok("ok!")
 }
@@ -723,7 +732,11 @@ fn edit_user(user: Option<User>, user_name: String, f: EditForm) -> impl Reply {
     if u.username == user_name || u.admin {
         use db::schema::users::dsl::*;
         diesel::update(users.find(u.id))
-            .set((bio.eq(&f.bio), email.eq(&f.email), show_email.eq(&f.show_email.is_some())))
+            .set((
+                bio.eq(&f.bio),
+                email.eq(&f.email),
+                show_email.eq(&f.show_email.is_some()),
+            ))
             .execute(conn)
             .unwrap();
     }

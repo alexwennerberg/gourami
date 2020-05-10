@@ -65,6 +65,7 @@ impl User {
     pub fn authenticate(conn: &SqliteConnection, user: &str, pass: &str) -> Option<Self> {
         use crate::db::schema::users::dsl::*;
         // TODO -- allow email login as well
+        debug!("Authenticating user {}", user);
         let user = match users.filter(username.eq(user)).first::<Self>(conn) {
             Ok(user) => user,
             Err(e) => {

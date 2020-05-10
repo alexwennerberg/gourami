@@ -1,7 +1,7 @@
 use crate::session;
 use crate::*;
 use env_logger;
-use warp::{reply, body::form, body::json, filters::cookie, filters::query::query, path};
+use warp::{body::form, body::json, filters::cookie, filters::query::query, path, reply};
 
 // I had trouble decoupling routes from server -- couldnt figure out the return type
 pub async fn run_server() {
@@ -89,9 +89,9 @@ pub async fn run_server() {
     // TODO -- setup proper replies
     let server_actor = path!("actor").map(|| reply::json(&ap::server_actor_json()));
 
-    let post_server_inbox = path!("inbox").and(json()).map(post_inbox);
-
-    let post_server_inbox = path!("inbox").and(json()).map(post_inbox);
+    let post_server_inbox = path!("inbox")
+        .and(json())
+        .and_then(post_inbox);
 
     let get_server_outbox = path!("outbox").map(get_outbox);
 
@@ -126,9 +126,9 @@ pub async fn run_server() {
         .or(warp::post()
             .and(warp::body::content_length_limit(1024 * 32))
             .and(forms))
-        // .or(warp::post()
-        //     .and(warp::body::content_length_limit(1024 * 64))
-        //     .and(api_post))
+        .or(warp::post()
+            .and(warp::body::content_length_limit(1024 * 64))
+            .and(api_post))
         .or(static_files)
         .with(warp::log("server"))
         .recover(handle_rejection)
