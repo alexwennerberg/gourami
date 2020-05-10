@@ -63,6 +63,8 @@ table! {
     server_mutuals (id) {
         id -> Integer,
         inbox_url -> Varchar,
+        accepted -> Bool,
+        followed_back -> Bool,
         outbox_url -> Nullable<Varchar>,
     }
 }
