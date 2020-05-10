@@ -1,9 +1,11 @@
 use clap::{App, Arg, SubCommand};
 use gourami_social::routes::run_server;
 use gourami_social::ap;
+use dotenv;
 
 #[tokio::main]
 async fn main() {
+    dotenv::dotenv().ok();
     let matches = App::new("Gourami")
         .version("0.1.0")
         .author("Alex Wennerberg <alex@alexwennerberg.com>")

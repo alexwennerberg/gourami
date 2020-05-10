@@ -38,6 +38,8 @@ Run `cargo install --path .`
 
 Set environment variables (todo -- add more details)
 
+Configuration is done via [dotenv](https://github.com/dotenv-rs/dotenv)
+
 Run the local server with `gourami_social run`
 
 ## Deployment
