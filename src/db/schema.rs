@@ -62,6 +62,7 @@ table! {
 table! {
     server_mutuals (id) {
         id -> Integer,
+        actor_id -> Varchar,
         inbox_url -> Varchar,
         accepted -> Bool,
         followed_back -> Bool,

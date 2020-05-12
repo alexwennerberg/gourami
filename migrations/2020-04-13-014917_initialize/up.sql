@@ -62,6 +62,7 @@ CREATE TABLE notes (
 
 create table server_mutuals (
   id integer primary key autoincrement,
+  actor_id VARCHAR(1000),
   inbox_url VARCHAR(1000),
   accepted boolean default false,
   followed_back boolean default false,

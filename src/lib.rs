@@ -33,6 +33,7 @@ use session::Session;
 
 pub mod ap;
 mod db;
+pub mod error;
 pub mod routes;
 mod session;
 

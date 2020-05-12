@@ -1,3 +1,4 @@
+use crate::error::Error;
 use crate::db::conn::POOL;
 use crate::db::note::{NoteInput, RemoteNoteInput};
 use crate::db::user::{NewRemoteUser, User};
@@ -19,6 +20,66 @@ use std::collections::BTreeMap;
 use std::env;
 use std::path::Path;
 
+fn domain_url() -> String {
+    if &env::var("SSL_ENABLED").unwrap() ==  "1" {
+        return format!("https://{}", &env::var("GOURAMI_DOMAIN").unwrap());
+    }
+    return format!("http://{}", &env::var("GOURAMI_DOMAIN").unwrap());
+}
+
+struct ServerApData {
+    global_id: String,
+    key_id: String,
+    inbox: String,
+    public_key: String
+}
+
+lazy_static! {
+    // TODO -- learn this a little better so it isnt so redundant
+    static ref SERVER: ServerApData = ServerApData {
+        global_id: format!("{}/", domain_url()),
+        key_id: format!("{}/actor#key", domain_url()),
+        inbox: format!("{}/inbox", domain_url()),
+        public_key: std::fs::read_to_string(env::var("SIGNATURE_PUBKEY_PEM").unwrap()).unwrap()
+    };
+}
+
+// TODO figure out how to get static working
+
+
+#[derive(Deserialize, Serialize)]
+pub struct CreateNote { // Maybe use AP crate
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct Actor {
+    context: Vec<String>,
+    id: String,
+    #[serde(rename = "type")] 
+    _type: String,
+    #[serde(rename = "preferredUsername")] 
+    preferred_username: String,
+    inbox: String,
+    #[serde(rename = "publicKey")] 
+    public_key: PublicKey
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct ApNote {
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct PublicKey {
+    id: String,
+    owner: String,
+    #[serde(rename = "publicKeyPem")] 
+    public_key_pem: String,
+}
+
+#[derive(Deserialize, Serialize)]
+pub struct Note {
+}
+
 /// Users don't follow users in Gourami. Instead the server does hte following
 /// There are a number of reasons for this:
 /// Gives it a more 'community' feel -- everyone shares the same timeline
@@ -28,32 +89,6 @@ use std::path::Path;
 /// This is a somewhat eccentric activitypub implementation, but it is as consistent with the spec
 /// as I can make it!
 use std::fs;
-
-fn domain_url() -> String {
-    if &env::var("SSL_ENABLED").unwrap() ==  "1" {
-        return format!("https://{}", &env::var("GOURAMI_DOMAIN").unwrap());
-    }
-    return format!("http://{}", &env::var("GOURAMI_DOMAIN").unwrap());
-}
-
-struct ServerApData {
-    actor: String,
-    global_id: String,
-    key_id: String,
-    inbox: String
-}
-
-lazy_static! {
-    // TODO -- learn this a little better so it isnt so redundant
-    static ref SERVER: ServerApData = ServerApData {
-        actor: format!("{}/actor", domain_url()),
-        global_id: format!("{}/", domain_url()),
-        key_id: format!("{}/actor#key", domain_url()),
-        inbox: format!("{}/inbox", domain_url())};
-}
-
-// TODO figure out how to get static working
-
 // ActivityPub outbox
 fn send_to_outbox(activity: bool) {
     // activitystreams object fetch/store from db.  db objects need to serialize/deserialize this object if get -> fetch from db if post -> put to db, send to inbox of followers send to inbox of followers
@@ -73,12 +108,10 @@ enum Action {
 
 
 /// get the server user json
-pub fn server_actor_json() -> Value {
+pub fn server_actor_json() -> Actor {
     // TODO figure out how to get lazy static working
     // TODO use ap library
-    let AP_PUBLIC_KEY: &str =
-        &fs::read_to_string(env::var("SIGNATURE_PUBKEY_PEM").unwrap()).unwrap();
-    json!({
+    serde_json::from_value(json!({
     "@context": [
         "https://www.w3.org/ns/activitystreams",
         "https://w3id.org/security/v1"
@@ -90,9 +123,9 @@ pub fn server_actor_json() -> Value {
     "inbox": SERVER.inbox,
     "publicKey": {
         "id": SERVER.key_id,
-        "owner": SERVER.actor,
-        "publicKeyPem": SERVER.key_id
-    }})
+        "owner": SERVER.global_id,
+        "publicKeyPem": SERVER.public_key
+    }})).unwrap()
 }
 
 fn categorize_input_message(v: Value) -> Action {
@@ -106,9 +139,10 @@ pub fn process_create_note(
     // maybe there's a cleaner way to do this. cant iterate over types
     // TODO inbox forwarding https://www.w3.org/TR/activitypub/#inbox-forwarding
     //
-    let conn = &POOL.get().unwrap();
+    let conn = &POOL.get()?;
     // Get actor
-    let object = v.get("object").ok_or("No object found")?;
+    // TODO -- look into this
+    let object = v.get("object").ok_or("No AP object found")?;
     let _type = object.get("type").ok_or("No object type found")?;
     // match type == note
     let content = object
@@ -167,36 +201,35 @@ pub fn process_create_note(
     println!("{:?}", new_remote_note);
     insert_into(n::notes)
         .values(&new_remote_note)
-        .execute(conn)
-        .unwrap();
+        .execute(conn)?;
     return Ok(());
 }
 
-pub async fn process_accept(v: Value) -> Result<(), reqwest::Error> {
-    let actor: &str = v.get("actor").unwrap().as_str().unwrap();
-    let remote_actor: Value = reqwest::get(actor).await?.json().await?;
-    let actor_inbox = remote_actor.get("inbox").unwrap().as_str().unwrap();
-    set_mutual_accepted(actor_inbox);
+pub async fn process_accept(v: Value) -> Result<(), Error> {
+    let actor_id: &str = v.get("actor").ok_or("No actor found")?.as_str().ok_or("Not a string")?;
+    set_mutual_accepted(actor_id);
     Ok(())
 }
 
-fn set_mutual_accepted (actor_inbox: &str) {
+fn set_mutual_accepted (the_actor_id: &str) -> Result<(), Error>{
     use crate::db::schema::server_mutuals::dsl::*;
-    let conn = &POOL.get().unwrap();
+    let conn = &POOL.get()?;
     diesel::update(server_mutuals)
-        .filter(inbox_url.eq(actor_inbox))
+        .filter(actor_id.eq(the_actor_id))
         .set(accepted.eq(true))
-        .execute(conn).unwrap();
+        .execute(conn)?;
+    Ok(())
 }
 
 // TODO clean this up 
-fn set_mutual_followed_back (actor_inbox: &str) {
+fn set_mutual_followed_back (actor_inbox: &str) -> Result<(), Error> {
     use crate::db::schema::server_mutuals::dsl::*;
-    let conn = &POOL.get().unwrap();
+    let conn = &POOL.get()?;
     diesel::update(server_mutuals)
         .filter(inbox_url.eq(actor_inbox))
         .set(followed_back.eq(true))
-        .execute(conn).unwrap();
+        .execute(conn)?;
+    Ok(())
 }
 
 fn should_accept(actor_inbox: &str) -> bool {
@@ -206,20 +239,20 @@ fn should_accept(actor_inbox: &str) -> bool {
     sent_req
 }
 
-pub async fn process_follow(v: Value) -> Result<(), reqwest::Error> {
+pub async fn process_follow(v: Value) -> Result<(), Error> {
     let actor: &str = v.get("actor").unwrap().as_str().unwrap();
-    let remote_actor: Value = reqwest::get(actor).await?.json().await?;
-    let actor_inbox = remote_actor.get("inbox").unwrap().as_str().unwrap();
-    let sent_req = should_accept(actor_inbox);
+    let remote_actor: Actor = get_remote_actor(actor).await?; // not strictly necessary can use db instead
+    let actor_inbox = &remote_actor.inbox;
+    let sent_req = should_accept(actor);
     debug!("Should server accept the request? {}", sent_req);
     if sent_req {
-        set_mutual_followed_back(actor_inbox);
+        set_mutual_followed_back(actor)?;
     // send accept follow
      let accept = json!({
         "@context": "https://www.w3.org/ns/activitystreams",
         "id": "https://my-example.com/my-first-accept",
         "type": "Accept",
-        "actor": SERVER.actor,
+        "actor": SERVER.global_id,
         "object": &v,
         });
      send_ap_message(&accept, vec![actor_inbox.to_string()]).await.unwrap();
@@ -248,33 +281,47 @@ pub async fn send_ap_message(
             .post(&destination)
             .header("date", Utc::now().to_rfc2822())
             .json(&ap_message)
-            .header("Content-Type", "application/activity+json")
+            .header("Content-Type", r#"application/ld+json; profile="https://www.w3.org/ns/activitystreams""#)
             .send()
             .await?;
     }
     Ok(())
 }
+pub async fn get_remote_actor(actor_id: &str) -> Result<Actor, Error> {
+    let client = reqwest::Client::new();
+    println!("{:?}", actor_id);
+    let res = client.get(actor_id)
+        .header("Accept", r#"application/ld+json; profile="https://www.w3.org/ns/activitystreams"#)
+        .send()
+        .await?;
+    println!("{:?}", res);
+    let res: Actor = res.json().await?;
+    println!("{:?}", res);
+    Ok(res)
+}
 
-pub async fn follow_remote_server(remote_url: &str) -> Result<(), reqwest::Error> {
-    let remote_actor: Value = reqwest::get(remote_url).await?.json().await?;
-    let inbox_url = remote_actor.get("inbox").unwrap().as_str().unwrap();
-    let msg = generate_server_follow(inbox_url);
+pub async fn follow_remote_server(remote_url: &str) -> Result<(), Error> {
+    let remote_actor: Actor = get_remote_actor(remote_url).await?;
+    let inbox_url = &remote_actor.inbox;
+    let actor_id = &remote_actor.id;
+    let msg = generate_server_follow(actor_id, inbox_url)?;
     send_ap_message(&msg, vec![inbox_url.to_owned()]).await?;
     Ok(())
 }
 
-fn generate_server_follow(remote_url: &str) -> Value {
-    let conn = &POOL.get().unwrap();
+fn generate_server_follow(remote_actor: &str, my_inbox_url: &str) -> Result<Value, Error> {
+    let conn = &POOL.get()?;
     let res = json!({
         "@context": "https://www.w3.org/ns/activitystreams",
         "id": "https://my-example.com/my-first-follow",
         "type": "Follow",
-        "actor": SERVER.actor,
-        "object": remote_url,
+        "actor": SERVER.global_id,
+        "object": remote_actor,
     });
     use crate::db::schema::server_mutuals::dsl::*;
-    insert_into(server_mutuals).values(NewServerMutual{inbox_url: remote_url.to_owned()}).execute(conn).unwrap();
-    res
+    // TODO use str instead of String
+    insert_into(server_mutuals).values(NewServerMutual{actor_id: remote_actor.to_owned(), inbox_url: my_inbox_url.to_owned()}).execute(conn)?;
+    Ok(res)
 
 }
 
@@ -286,7 +333,7 @@ pub fn new_note_to_ap_message(note: &NoteInput, user: &User) -> Value {
         "@context": "https://www.w3.org/ns/activitystreams",
         "id": "someid",
         "type": "Create",
-        "actor": SERVER.actor,
+        "actor": SERVER.global_id,
         "published": "now",
         "to": [
             "destination.server"
@@ -325,9 +372,7 @@ impl HttpSignature for reqwest::RequestBuilder {
         let config = Config::default()
             .set_expiration(Duration::seconds(3600))
             .dont_use_created_field();
-        // let server_key_id =
-        let server_key_id: &str =
-            &format!("http://{}/actor#key", &env::var("GOURAMI_DOMAIN").unwrap());
+        let server_key_id = SERVER.key_id.clone();
         let mut bt = std::collections::BTreeMap::new();
         for (k, v) in req.headers().iter() {
             bt.insert(k.as_str().to_owned(), v.to_str()?.to_owned());
@@ -340,7 +385,7 @@ impl HttpSignature for reqwest::RequestBuilder {
         let unsigned = config.begin_sign(req.method().as_str(), &path_and_query, bt)?;
         println!("{:?}", &unsigned);
         let sig_header = unsigned
-            .sign(server_key_id.to_owned(), |signing_string| {
+            .sign(server_key_id,|signing_string| {
                 let private_key = read_file(Path::new(&env::var("SIGNATURE_PRIVKEY").unwrap()));
                 let key_pair =
                     ring::signature::RsaKeyPair::from_pkcs8(&private_key.unwrap()).unwrap();
@@ -496,7 +541,7 @@ mod tests {
             // for mastodon config -- newer versions of httsig dont use this
             .header("date", Utc::now().to_rfc2822())
             .json(&body)
-            .header("Content-Type", "application/activity+json")
+            .header("Accept", r#"application/ld+json; profile="https://www.w3.org/ns/activitystreams"#)
             .http_sign_outgoing()
             .unwrap();
     }

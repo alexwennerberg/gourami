@@ -1,7 +1,7 @@
 use crate::session;
 use crate::*;
 use env_logger;
-use warp::{body::form, body::json, filters::cookie, filters::query::query, path, reply};
+use warp::{header, body::form, body::json, filters::cookie, filters::query::query, path, reply};
 
 // I had trouble decoupling routes from server -- couldnt figure out the return type
 pub async fn run_server() {
@@ -12,6 +12,18 @@ pub async fn run_server() {
     // TODO - -create a filter that gives only certain users access to pages
 
     // we have to pass the full paths for redirect to work without javascript
+    //
+    let actor_json = warp::path::end()
+        // In practice, the headers may not follow the spec
+        // https://www.w3.org/TR/activitypub/#retrieving-objects
+        .and(header::exact_ignore_case("accept", r#"application/ld+json; profile="https://www.w3.org/ns/activitystreams""#)
+        .or(header::exact_ignore_case("accept", r#"application/ld+json"#))
+        .or(header::exact_ignore_case("accept", r#"profile="https://www.w3.org/ns/activitystreams""#)
+            )
+        )
+        .map(|_| reply::json(&ap::server_actor_json()) // how do async work
+        );
+
     let home = warp::path::end()
         .and(session_filter())
         .and(query())
@@ -87,8 +99,9 @@ pub async fn run_server() {
     // setup authentication
     // POST
     // TODO -- setup proper replies
-    let server_actor = path!("actor").map(|| reply::json(&ap::server_actor_json()));
 
+
+    // force content type to be application/ld+json; profile="https://www.w3.org/ns/activitystreams
     let post_server_inbox = path!("inbox")
         .and(json())
         .and_then(post_inbox);
@@ -101,7 +114,7 @@ pub async fn run_server() {
     // TODO secure against xss
     // used for api based authentication
     // let api_filter = session::create_session_filter(&POOL.get());
-    let static_json = server_actor; // rename html renders
+    let static_json = actor_json; // rename html renders
     let html_renders = home
         .or(login_page)
         .or(register_page)
@@ -122,7 +135,7 @@ pub async fn run_server() {
     // catch all for any other paths
 
     let routes = warp::get()
-        .and(html_renders.or(static_json))
+        .and(static_json.or(html_renders))
         .or(warp::post()
             .and(warp::body::content_length_limit(1024 * 32))
             .and(forms))

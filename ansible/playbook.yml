@@ -1,5 +1,9 @@
+# This is only tested on Debian. Attempt at other distros at your wown peril
+# TODO -- generate https
+# TODO -- generate public key for http signature
+# TODO -- diesel migrations? or some other schema migraiton
 ---
-- hosts: all
+- hosts: gourami
   remote_user: root
   become: yes
   tasks:

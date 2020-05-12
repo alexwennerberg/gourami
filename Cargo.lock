@@ -651,6 +651,7 @@ dependencies = [
  "log 0.4.8",
  "maplit",
  "openssl",
+ "r2d2",
  "rand 0.7.3",
  "regex",
  "reqwest",
