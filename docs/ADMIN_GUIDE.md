@@ -28,7 +28,15 @@ I would recommend following basic Linux syadmin best practices: disable password
 
 ## Gourami's ActivityPub implementation
 
-(maybe this should be somewhere else -- like a dev guide)
+Gourami's ActivityPub implementation is somewhat opinionated and a little esoteric. Gourami is not Mastodon or Twitter and is not trying to be. Using it in that way may cause some frustration -- so just be aware that Gourami does things a little differently. I'm considering adding more 'traditional' activitypub functionality.
+
+The server has a server actor. This is an ActivityPub actor of type "Organization" and is the only ActivityPub actor on the server. All requests go through this actor. This forces you to think of your server as a cohesive whole -- users or other servers can only follow an entire server, not individual users. I encourage you to think about how this would change the way you structure your community.
+
+Currently, deletes are not supported. Deletes can be misleading in federation, and I think the simplest solution is just not to implement them.
+
+The only audience supported for ingoing and outgoing messages is [public]. This both simplifies the AP implementation and, in my view, more accurately specifies how ActivityPub works in practice -- once I send my message to a remote server, there isn't really any guarantee as to where it will go.
+
+Most of these decisions were informed by simplicity
 
 ## Federation -- the "neighborhood"
 

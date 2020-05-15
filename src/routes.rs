@@ -1,9 +1,12 @@
 use crate::session;
 use crate::*;
 use env_logger;
-use warp::{header, body::form, body::json, filters::cookie, filters::query::query, path, reply};
+use warp::{header, body, body::form, body::json, filters::cookie, filters::query::query, path, reply};
+use serde::de::DeserializeOwned;
+use warp::reject::{self, Rejection};
+use warp::reply::Response;
+use http::header::{HeaderName, HeaderValue, CONTENT_TYPE};
 
-// I had trouble decoupling routes from server -- couldnt figure out the return type
 pub async fn run_server() {
     // NOT TESTED YET
     let public = false; // std::env::var("PUBLIC").unwrap_or("false");
@@ -13,15 +16,21 @@ pub async fn run_server() {
 
     // we have to pass the full paths for redirect to work without javascript
     //
+    let webfinger = warp::path!(".well-known" / "webfinger")
+        .and(query())
+        // TODO content type
+        .map(|q| reply::json(&ap::webfinger_json(q)));
+
     let actor_json = warp::path::end()
         // In practice, the headers may not follow the spec
         // https://www.w3.org/TR/activitypub/#retrieving-objects
-        .and(header::exact_ignore_case("accept", r#"application/ld+json; profile="https://www.w3.org/ns/activitystreams""#)
-        .or(header::exact_ignore_case("accept", r#"application/ld+json"#))
-        .or(header::exact_ignore_case("accept", r#"profile="https://www.w3.org/ns/activitystreams""#)
-            )
-        )
-        .map(|_| reply::json(&ap::server_actor_json()) // how do async work
+        // .and(header::exact_ignore_case("accept", r#"application/ld+json; profile="https://www.w3.org/ns/activitystreams""#)
+        // .or(header::exact_ignore_case("accept", r#"application/ld+json"#))
+        // .or(header::exact_ignore_case("accept", r#"profile="https://www.w3.org/ns/activitystreams""#)
+            // )
+        // )
+        // TODO content type 
+        .map(|| reply::json(&ap::server_actor_json()) // how do async work
         );
 
     let home = warp::path::end()
@@ -103,8 +112,13 @@ pub async fn run_server() {
 
     // force content type to be application/ld+json; profile="https://www.w3.org/ns/activitystreams
     let post_server_inbox = path!("inbox")
-        .and(json())
-        .and_then(post_inbox);
+        .and(body::aggregate())
+        .and(header::exact_ignore_case("content-type", r#"application/ld+json; profile="https://www.w3.org/ns/activitystreams""#)
+        .or(header::exact_ignore_case("content-type", r#"application/ld+json"#))
+        .or(header::exact_ignore_case("content-type", r#"profile="https://www.w3.org/ns/activitystreams""#)))
+        .and(header::headers_cloned())
+        .and_then(|buf,_, headers| async move {
+            post_inbox(buf, headers).await});
 
     let get_server_outbox = path!("outbox").map(get_outbox);
 
@@ -114,7 +128,7 @@ pub async fn run_server() {
     // TODO secure against xss
     // used for api based authentication
     // let api_filter = session::create_session_filter(&POOL.get());
-    let static_json = actor_json; // rename html renders
+    let static_json = actor_json.or(webfinger); // rename html renders
     let html_renders = home
         .or(login_page)
         .or(register_page)
@@ -140,13 +154,12 @@ pub async fn run_server() {
             .and(warp::body::content_length_limit(1024 * 32))
             .and(forms))
         .or(warp::post()
-            .and(warp::body::content_length_limit(1024 * 64))
+            .and(warp::body::content_length_limit(1024 * 1024))
             .and(api_post))
         .or(static_files)
         .with(warp::log("server"))
         .recover(handle_rejection)
         .boxed();
-    env_logger::init();
     match std::env::var("SSL_ENABLED").unwrap().as_str() {
         "1" => {
             warp::serve(routes)

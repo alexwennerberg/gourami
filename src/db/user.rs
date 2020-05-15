@@ -102,7 +102,6 @@ pub struct NewUser<'a> {
 #[table_name = "users"]
 pub struct NewRemoteUser {
     pub username: String,
-    pub remote_url: Option<String>,
 }
 // impl NewUser {
 

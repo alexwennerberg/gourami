@@ -12,6 +12,7 @@ extern crate lazy_static;
 use serde_json::Value;
 use std::convert::Infallible;
 use zxcvbn::zxcvbn;
+use std::collections::BTreeMap;
 
 use warp::filters::path::FullPath;
 use warp::http;
@@ -209,7 +210,7 @@ async fn handle_new_note_form(u: Option<User>, f: NewNoteRequest) -> Result<impl
             if n.neighborhood {
                 let nj = ap::new_note_to_ap_message(&n, &u);
                 let destinations = ap::get_destinations();
-                ap::send_ap_message(&nj, destinations).await.unwrap(); // TODO error handling
+                ap::send_ap_message(nj, destinations).await.unwrap(); // TODO error handling
             }
             let red_url: http::Uri = f.redirect_url.parse().unwrap();
             Ok(redirect(red_url))
@@ -222,7 +223,7 @@ pub fn new_note(
     auth_user: &User,
     note_input: &str,
     neighborhood: bool,
-) -> Result<NoteInput, Box<dyn std::error::Error>> {
+) -> Result<Note, Box<dyn std::error::Error>> {
     use db::schema::notes::dsl as notes;
     use db::schema::notification_viewers::dsl as nv;
     use db::schema::notifications::dsl as notifs;
@@ -240,18 +241,17 @@ pub fn new_note(
         content: parsed_note_text,
         neighborhood: neighborhood,
     };
-    // TODO fix potential multithreading issue
-    insert_into(notes::notes).values(&new_note).execute(conn)?;
-    let note_id: i32 = notes::notes
+    let inserted_note: Note = conn.transaction(|| {
+        insert_into(notes::notes).values(&new_note).execute(conn)?;
+        notes::notes
         .order(notes::id.desc())
-        .select(notes::id)
         .first(conn)
-        .unwrap();
+    })?;
     // notify person u reply to
     if mentions.len() > 0 {
         let message = format!(
             "@{} mentioned you in a note 📝{}",
-            auth_user.username, note_id
+            auth_user.username, inserted_note.id
         );
         let new_notification = NewNotification {
             // reusing the same parser for now. rename maybe
@@ -291,7 +291,7 @@ pub fn new_note(
     // send to outbox
     // add notification
     // if request made from web form
-    Ok(new_note)
+    Ok(inserted_note)
 }
 
 #[derive(Deserialize)]
@@ -703,10 +703,18 @@ pub fn get_outbox() {}
 
 // pub fn user_following(user_name: String) {}
 
-pub async fn post_inbox(message: Value) -> Result<impl Reply, Infallible>  {
+use warp::Buf;
+
+pub async fn post_inbox(buf: impl Buf, headers: http::header::HeaderMap) -> Result<impl Reply, Infallible>  {
     // TODO check if it is a create note message
-    //
-    // ap::verify_ap_message("POST","/index")
+    let message: Value = serde_json::from_slice(buf.bytes()).unwrap(); // TODO error handling
+    debug!("received request {:?}", message);
+    let mut headersbtree: BTreeMap<String, String>  = BTreeMap::new();
+    // convert to btree
+    for (k,v) in headers.iter() {
+        headersbtree.insert(k.as_str().to_owned(), v.to_str().unwrap().to_owned());
+    }
+    ap::verify_ap_message("POST","/inbox", headersbtree).await.unwrap(); // slash or empty string?
     let msg_type = message.get("type").unwrap().as_str().unwrap();
     debug!("Received ActivityPub message of type {}", msg_type); // TODO improve logging
     match msg_type {

@@ -6,6 +6,7 @@ use dotenv;
 #[tokio::main]
 async fn main() {
     dotenv::dotenv().ok();
+    env_logger::init();
     let matches = App::new("Gourami")
         .version("0.1.0")
         .author("Alex Wennerberg <alex@alexwennerberg.com>")

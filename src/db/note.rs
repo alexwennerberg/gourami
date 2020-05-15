@@ -5,6 +5,8 @@ use maplit::hashset;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 
+use crate::ap::SERVER;
+
 /// This isn't queryable directly,
 /// It only works when joined with the users table
 ///
@@ -21,15 +23,23 @@ pub struct Note {
     pub neighborhood: bool,
     pub is_remote: bool,
     pub remote_url: Option<String>,
-    pub remote_creator: Option<String>,
     pub remote_id: Option<String>,
 }
 
-// impl Note {
-//     fn get_url(&self) -> String {
-//         format!("{}/note/{}", env::var("GOURAMI_DOMAIN").unwrap(), self.id)
-//     }
-// }
+use std::env;
+
+impl Note {
+   pub fn get_url(&self) -> String {
+       // TODO move domain url function
+        format!("{}/note/{}", SERVER.global_id, self.id)
+    }
+   // we make some modifications for outgoing notes
+   pub fn get_content_for_outgoing(&self, username: &str) -> String {
+       // remove first reply string
+       // username not user id
+       format!("{}:{}💬 {}", SERVER.domain, username, self.content)
+   }
+}
 
 /// Content in the DB is stored in plaintext (WILL BE)
 /// We want to render it so that it is rendered in HTML
@@ -70,7 +80,6 @@ pub struct RemoteNoteInput {
     pub in_reply_to: Option<i32>,
     pub neighborhood: bool,
     pub is_remote: bool,
-    pub remote_creator: String,
     pub remote_url: String,
     pub remote_id: String,
 }
