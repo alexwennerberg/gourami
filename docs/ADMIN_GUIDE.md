@@ -5,21 +5,21 @@ If you want to administer a Gourami server, you'll need a few technical skills:
 1. Basic Linux sysadmin skills -- ability to set up a web server.
 2. Basic SQL knowledge -- ability to query and insert records. Right now, Gourami does not have an admin interface or admin tools, so certain actions (such as resetting a user's password or deleting a post or account) will require manual SQL intervention. 
 
-## Installation and setup
+## Deployment
 
-// TODO
+Once you've built Gourami, you'll have a standalone binary that runs the server. Nothing else is needed, aside from Sqlite, OpenSSL and a TLS cert! I put together an ansible playbook that you may find helpful in `ansible/`. If you are having trouble deploying Gourami, feel free to send me an email or open a GitHub issue.
+
+It should be relatively straightforward to deploy this on a Raspberry Pi too -- I plan on doing this at some point, and I'll put together a guide for it.
 
 ## Inviting users
 
-Gourami is invite-only. Right now, you create an invite by adding a record to the invitation_keys table and sharing that key with the user you're inviting.
+Gourami is invite-only. Right now, you create an invite by adding a record to the invitation_keys table and sharing that key with the user you're inviting. You'll have to do this for yourself as well.
 
 ## Connecting with other servers.
 
 Gourami uses ActivityPub to connect with other ActivityPub Actors. If you're familiar with ActivityPub, you should know that Gourami works somewhat differently than a service like Mastodon.
 
-Gourami connects through the "neighborhood" timeline. This means that any post that a user on your server makes in the neighborhood timeline is sent to all servers you are connected with. You can connect with either a server or an individual ActivityPub actor, such as a Mastodon user, but be aware that that user will see all posts in your neighborhood timeline.
-
-You will only be considered "connected" to a remote server if you follow that server and that server follows you back.
+Gourami connects through the "neighborhood" timeline. This means that any post that a user on your server makes in the neighborhood timeline is sent to all servers you are connected with. You can connect with either a server or an individual ActivityPub actor, such as a Mastodon user, but be aware that that user will see all posts in your neighborhood timeline.  You will only be considered "connected" to a remote server if you follow that server and that server follows you back.
 
 Gourami doesn't implement unfollows yet, so you'll have to directly modify the database and communicate with the user / server you're unfollowing.
 
@@ -42,7 +42,7 @@ You may want to customize parts of Gourami, such as the CSS format or server mes
 
 Gourami's ActivityPub implementation is somewhat opinionated and a little esoteric. Gourami is not Mastodon or Twitter and is not trying to be. Using it in that way may cause some frustration -- so just be aware that Gourami does things a little differently. I'm considering adding more 'traditional' activitypub functionality.
 
-The server has a server actor. This is an ActivityPub actor of type "Organization" and is the only ActivityPub actor on the server. All requests go through this actor. This forces you to think of your server as a cohesive whole -- users or other servers can only follow an entire server, not individual users. I encourage you to think about how this would change the way you structure your community.
+The server has a server actor. This is an ActivityPub actor of type "Organization" and is the only ActivityPub actor on the server. All requests go through this actor. This forces you to think of your server as a cohesive whole -- users or other servers can only follow an entire server, not individual users. I encourage you to think about how this would change the way you structure your community. The distinction between which user says something is done via a string at the beginning of the post content. Gourami will parse this string as the user, other services will not.
 
 Currently, deletes are not supported. 
 

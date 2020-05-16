@@ -1,7 +1,7 @@
 use clap::{App, Arg, SubCommand};
-use gourami_social::routes::run_server;
-use gourami_social::ap;
 use dotenv;
+use gourami_social::ap;
+use gourami_social::routes::run_server;
 
 #[tokio::main]
 async fn main() {
@@ -31,12 +31,16 @@ async fn main() {
     if let Some(_) = matches.subcommand_matches("run") {
         run_server().await;
     } else if let Some(m) = matches.subcommand_matches("follow") {
-            let url = m.value_of("URL").unwrap();
-            ap::whitelist_or_follow_remote_server(url, true).await.unwrap();
+        let url = m.value_of("URL").unwrap();
+        ap::whitelist_or_follow_remote_server(url, true)
+            .await
+            .unwrap();
     } else if let Some(m) = matches.subcommand_matches("whitelist") {
-            let url = m.value_of("URL").unwrap();
-            ap::whitelist_or_follow_remote_server(url, false).await.unwrap();
+        let url = m.value_of("URL").unwrap();
+        ap::whitelist_or_follow_remote_server(url, false)
+            .await
+            .unwrap();
     }
-        // reset password
-        // follow remote
+    // reset password
+    // follow remote
 }

@@ -10,9 +10,9 @@ extern crate log;
 extern crate lazy_static;
 
 use serde_json::Value;
+use std::collections::BTreeMap;
 use std::convert::Infallible;
 use zxcvbn::zxcvbn;
-use std::collections::BTreeMap;
 
 use warp::filters::path::FullPath;
 use warp::http;
@@ -24,8 +24,8 @@ use askama::Template;
 use db::conn::POOL;
 use db::note;
 use db::note::{Note, NoteInput};
-use db::server_mutuals::{ServerMutual};
 use db::notification::{NewNotification, NewNotificationViewer, Notification, NotificationViewer};
+use db::server_mutuals::ServerMutual;
 use db::user::{NewUser, RegistrationKey, User, Username};
 use diesel::insert_into;
 use diesel::prelude::*;
@@ -111,7 +111,7 @@ struct RegisterTemplate<'a> {
 struct ServerInfoTemplate<'a> {
     global: Global<'a>,
     users: Vec<User>,
-    server_mutuals: Vec<ServerMutual>
+    server_mutuals: Vec<ServerMutual>,
 }
 
 const PAGE_SIZE: i64 = 50;
@@ -206,7 +206,11 @@ struct NewNoteRequest {
 }
 use tokio::sync::mpsc::UnboundedSender;
 
-async fn handle_new_note_form(u: Option<User>, f: NewNoteRequest, sender: UnboundedSender<(Value, Vec<String>)>) -> Result<impl Reply, Rejection> {
+async fn handle_new_note_form(
+    u: Option<User>,
+    f: NewNoteRequest,
+    sender: UnboundedSender<(Value, Vec<String>)>,
+) -> Result<impl Reply, Rejection> {
     match u {
         Some(u) => {
             let n = new_note(&u, &f.note_input, f.neighborhood.is_some()).unwrap();
@@ -214,7 +218,8 @@ async fn handle_new_note_form(u: Option<User>, f: NewNoteRequest, sender: Unboun
                 let nj = ap::new_note_to_ap_message(&n, &u);
                 let destinations = ap::get_connected_remotes()
                     .into_iter()
-                    .map(|s| s.inbox_url).collect();
+                    .map(|s| s.inbox_url)
+                    .collect();
                 sender.send((nj, destinations)).ok();
             }
             let red_url: http::Uri = f.redirect_url.parse().unwrap();
@@ -248,9 +253,7 @@ pub fn new_note(
     };
     let inserted_note: Note = conn.transaction(|| {
         insert_into(notes::notes).values(&new_note).execute(conn)?;
-        notes::notes
-        .order(notes::id.desc())
-        .first(conn)
+        notes::notes.order(notes::id.desc()).first(conn)
     })?;
     // notify person u reply to
     if mentions.len() > 0 {
@@ -269,7 +272,7 @@ pub fn new_note(
         for mention in mentions {
             // skip if you reply to yourself
             if auth_user.username == mention {
-                continue
+                continue;
             }
             // create reply notification
             // I thinks this may work but worry about multithreading
@@ -364,7 +367,6 @@ fn do_register(form: RegisterForm, query_params: serde_json::Value) -> impl Repl
                 email: &form.email,
             };
             insert_into(users).values(new_user).execute(conn).unwrap();
-
         }
     }
     // database
@@ -626,7 +628,7 @@ fn server_info_page(auth_user: Option<User>) -> impl Reply {
     render_template(&ServerInfoTemplate {
         global: Global::create(auth_user, "/server"),
         users: users,
-        server_mutuals: server_mutuals
+        server_mutuals: server_mutuals,
     })
 }
 
@@ -709,23 +711,28 @@ pub fn get_outbox() {}
 
 use warp::Buf;
 
-pub async fn post_inbox(buf: impl Buf, headers: http::header::HeaderMap) -> Result<impl Reply, Infallible>  {
+pub async fn post_inbox(
+    buf: impl Buf,
+    headers: http::header::HeaderMap,
+) -> Result<impl Reply, Infallible> {
     // TODO check if it is a create note message
     let message: Value = serde_json::from_slice(buf.bytes()).unwrap(); // TODO error handling
     debug!("received request {:?}", message);
-    let mut headersbtree: BTreeMap<String, String>  = BTreeMap::new();
+    let mut headersbtree: BTreeMap<String, String> = BTreeMap::new();
     // convert to btree
-    for (k,v) in headers.iter() {
+    for (k, v) in headers.iter() {
         headersbtree.insert(k.as_str().to_owned(), v.to_str().unwrap().to_owned());
     }
-    ap::verify_ap_message("POST","/inbox", headersbtree).await.unwrap(); // slash or empty string?
+    ap::verify_ap_message("POST", "/inbox", headersbtree)
+        .await
+        .unwrap(); // slash or empty string?
     let msg_type = message.get("type").unwrap().as_str().unwrap();
     debug!("Received ActivityPub message of type {}", msg_type); // TODO improve logging
     match msg_type {
-         "Create" => ap::process_create_note(message).unwrap(),
-         "Follow" => ap::process_follow(message).await.unwrap(),
-         "Accept" => ap::process_accept(message).await.unwrap(),
-        _ => ()
+        "Create" => ap::process_create_note(message).unwrap(),
+        "Follow" => ap::process_follow(message).await.unwrap(),
+        "Accept" => ap::process_accept(message).await.unwrap(),
+        _ => (),
     }
     // thtas it!
     Ok("ok!")

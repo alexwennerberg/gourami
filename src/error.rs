@@ -8,7 +8,7 @@ pub enum Error {
     DatabaseError(diesel::result::Error),
     PoolError(r2d2::Error),
     MiscError(String), // Just a temp
-    HttpSigError(http_signature_normalization::PrepareVerifyError)
+    HttpSigError(http_signature_normalization::PrepareVerifyError),
 }
 
 impl From<&str> for Error {

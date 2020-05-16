@@ -1,5 +1,5 @@
-use diesel::sqlite::SqliteConnection;
 use super::schema::server_mutuals;
+use diesel::sqlite::SqliteConnection;
 
 #[derive(Queryable, PartialEq, Debug)]
 pub struct ServerMutual {
@@ -12,7 +12,7 @@ pub struct ServerMutual {
 }
 
 #[derive(Insertable)]
-#[table_name="server_mutuals"]
+#[table_name = "server_mutuals"]
 pub struct NewServerMutual {
     pub actor_id: String,
     pub inbox_url: String,

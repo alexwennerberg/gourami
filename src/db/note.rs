@@ -1,11 +1,11 @@
 use super::schema::notes;
-use std::env;
 use crate::db::user::User;
 use ammonia;
+use chrono::Utc;
 use maplit::hashset;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
-use chrono::Utc;
+use std::env;
 
 use crate::ap::SERVER;
 
@@ -28,38 +28,35 @@ pub struct Note {
     pub remote_id: Option<String>,
 }
 
-
 impl Note {
-   pub fn get_url(&self) -> String {
-       // TODO move domain url function
+    pub fn get_url(&self) -> String {
+        // TODO move domain url function
         format!("{}/note/{}", SERVER.global_id, self.id)
     }
-   // we make some modifications for outgoing notes
-   pub fn get_content_for_outgoing(&self, username: &str) -> String {
-       // remove first reply string
-       // username not user id
-       format!("{}:{}💬 {}", SERVER.domain, username, self.content)
-   }
+    // we make some modifications for outgoing notes
+    pub fn get_content_for_outgoing(&self, username: &str) -> String {
+        // remove first reply string
+        // username not user id
+        format!("{}:{}💬 {}", SERVER.domain, username, self.content)
+    }
 
-   pub fn relative_timestamp(&self) -> String {
-       // Maybe use some fancy library here
-       let diff = Utc::now().naive_utc().signed_duration_since(self.created_time);
-       if diff.num_days() > 30 {
-           return format!("{}", self.created_time.date());
-       }
-       else if diff.num_hours() > 24 {
-           return format!("{}d", diff.num_days());
-       }
-       else if diff.num_minutes() > 60 {
-           return format!("{}h", diff.num_hours());
-       }
-       else if diff.num_seconds() > 60 {
-           return format!("{}m", diff.num_minutes());
-       }
-       else {
-           return format!("{}s", diff.num_seconds());
-       }
-   }
+    pub fn relative_timestamp(&self) -> String {
+        // Maybe use some fancy library here
+        let diff = Utc::now()
+            .naive_utc()
+            .signed_duration_since(self.created_time);
+        if diff.num_days() > 30 {
+            return format!("{}", self.created_time.date());
+        } else if diff.num_hours() > 24 {
+            return format!("{}d", diff.num_days());
+        } else if diff.num_minutes() > 60 {
+            return format!("{}h", diff.num_hours());
+        } else if diff.num_seconds() > 60 {
+            return format!("{}m", diff.num_minutes());
+        } else {
+            return format!("{}s", diff.num_seconds());
+        }
+    }
 }
 
 /// Content in the DB is stored in plaintext (WILL BE)

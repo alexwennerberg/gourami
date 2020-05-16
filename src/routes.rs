@@ -1,12 +1,14 @@
 use crate::session;
 use crate::*;
 use env_logger;
-use warp::{header, body, body::form, body::json, filters::cookie, filters::query::query, path, reply};
-use serde::de::DeserializeOwned;
-use warp::reject::{self, Rejection};
-use std::time::Duration;
-use warp::reply::Response;
 use http::header::{HeaderName, HeaderValue, CONTENT_TYPE};
+use serde::de::DeserializeOwned;
+use std::time::Duration;
+use warp::reject::{self, Rejection};
+use warp::reply::Response;
+use warp::{
+    body, body::form, body::json, filters::cookie, filters::query::query, header, path, reply,
+};
 
 pub async fn run_server() {
     // NOT TESTED YET
@@ -40,14 +42,24 @@ pub async fn run_server() {
     let actor_json = warp::path::end()
         // In practice, the headers may not follow the spec
         // https://www.w3.org/TR/activitypub/#retrieving-objects
-        .and(header::exact_ignore_case("accept", r#"application/ld+json; profile="https://www.w3.org/ns/activitystreams""#)
-        .or(header::exact_ignore_case("accept", r#"application/ld+json"#))
-        .or(header::exact_ignore_case("accept", r#"profile="https://www.w3.org/ns/activitystreams""#))
-        .or(header::exact_ignore_case("accept", "application/json")
+        .and(
+            header::exact_ignore_case(
+                "accept",
+                r#"application/ld+json; profile="https://www.w3.org/ns/activitystreams""#,
             )
+            .or(header::exact_ignore_case(
+                "accept",
+                r#"application/ld+json"#,
+            ))
+            .or(header::exact_ignore_case(
+                "accept",
+                r#"profile="https://www.w3.org/ns/activitystreams""#,
+            ))
+            .or(header::exact_ignore_case("accept", "application/json")),
         )
-        // TODO content type 
-        .map(|_| reply::json(&ap::server_actor_json()) // how do async work
+        // TODO content type
+        .map(
+            |_| reply::json(&ap::server_actor_json()), // how do async work
         );
 
     let home = warp::path::end()
@@ -106,20 +118,23 @@ pub async fn run_server() {
         .and(with_sender)
         .and_then(handle_new_note_form);
 
-    let delete_note = path("delete_note").and(private_session_filter()).and(form()).map(
-        |u: Option<User>, f: DeleteNoteRequest| match u {
+    let delete_note = path("delete_note")
+        .and(private_session_filter())
+        .and(form())
+        .map(|u: Option<User>, f: DeleteNoteRequest| match u {
             Some(u) => {
                 delete_note(f.note_id).unwrap(); // TODO fix unwrap
                 let red_url: http::Uri = f.redirect_url.parse().unwrap();
                 redirect(red_url)
             }
             None => redirect(http::Uri::from_static("error")),
-        },
-    );
+        });
 
     // couldn't figure out how to get this folder to render on root properly
     let robots = warp::path("robots.txt").and(warp::fs::file("./static/robots.txt"));
-    let static_files = warp::path("static").and(warp::fs::dir("./static")).or(robots);
+    let static_files = warp::path("static")
+        .and(warp::fs::dir("./static"))
+        .or(robots);
 
     // activityPub stuff
     // This stuff should filter based on the application headers
@@ -127,16 +142,25 @@ pub async fn run_server() {
     // POST
     // TODO -- setup proper replies
 
-
     // force content type to be application/ld+json; profile="https://www.w3.org/ns/activitystreams
     let post_server_inbox = path!("inbox")
         .and(body::aggregate())
-        .and(header::exact_ignore_case("content-type", r#"application/ld+json; profile="https://www.w3.org/ns/activitystreams""#)
-        .or(header::exact_ignore_case("content-type", r#"application/ld+json"#))
-        .or(header::exact_ignore_case("content-type", r#"profile="https://www.w3.org/ns/activitystreams""#)))
+        .and(
+            header::exact_ignore_case(
+                "content-type",
+                r#"application/ld+json; profile="https://www.w3.org/ns/activitystreams""#,
+            )
+            .or(header::exact_ignore_case(
+                "content-type",
+                r#"application/ld+json"#,
+            ))
+            .or(header::exact_ignore_case(
+                "content-type",
+                r#"profile="https://www.w3.org/ns/activitystreams""#,
+            )),
+        )
         .and(header::headers_cloned())
-        .and_then(|buf,_, headers| async move {
-            post_inbox(buf, headers).await});
+        .and_then(|buf, _, headers| async move { post_inbox(buf, headers).await });
 
     let get_server_outbox = path!("outbox").map(get_outbox);
 

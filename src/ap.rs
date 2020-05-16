@@ -1,8 +1,8 @@
-use crate::error::Error;
 use crate::db::conn::POOL;
 use crate::db::note::{Note, NoteInput, RemoteNoteInput};
-use crate::db::user::{NewRemoteUser, User};
 use crate::db::server_mutuals::{NewServerMutual, ServerMutual};
+use crate::db::user::{NewRemoteUser, User};
+use crate::error::Error;
 use base64;
 use chrono::{Duration, Utc};
 use diesel::insert_into;
@@ -21,7 +21,7 @@ use std::env;
 use std::path::Path;
 
 fn domain_url() -> String {
-    if &env::var("SSL_ENABLED").unwrap() ==  "1" {
+    if &env::var("SSL_ENABLED").unwrap() == "1" {
         return format!("https://{}", &env::var("GOURAMI_DOMAIN").unwrap());
     }
     return format!("http://{}", &env::var("GOURAMI_DOMAIN").unwrap());
@@ -32,7 +32,7 @@ pub struct ServerApData {
     pub key_id: String,
     pub domain: String,
     pub inbox: String,
-    pub public_key: String
+    pub public_key: String,
 }
 
 lazy_static! {
@@ -56,7 +56,8 @@ fn generate_activity_id() -> String {
 }
 
 #[derive(Deserialize, Serialize)]
-pub struct CreateNote { // Maybe use AP crate
+pub struct CreateNote {
+    // Maybe use AP crate
     id: String,
     note: ApNote,
     actor: Actor,
@@ -64,41 +65,41 @@ pub struct CreateNote { // Maybe use AP crate
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct Actor {
-    #[serde(rename = "@context")] 
-    context: Value, 
+    #[serde(rename = "@context")]
+    context: Value,
     id: String,
     name: Option<String>,
     summary: Option<String>,
-    #[serde(rename = "type")] 
+    #[serde(rename = "type")]
     _type: String,
-    #[serde(rename = "preferredUsername")] 
+    #[serde(rename = "preferredUsername")]
     preferred_username: String,
     inbox: String,
-    #[serde(rename = "publicKey")] 
-    public_key: PublicKey
+    #[serde(rename = "publicKey")]
+    public_key: PublicKey,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct ApNote {
     content: String,
-    #[serde(rename = "attributedTo")] 
+    #[serde(rename = "attributedTo")]
     attributed_to: String,
     url: String,
     summary: Option<String>,
     id: String,
-    #[serde(rename = "inReplyTo")] 
-    in_reply_to: Option<String>
+    #[serde(rename = "inReplyTo")]
+    in_reply_to: Option<String>,
 }
 
 use regex::Regex;
 
 impl ApNote {
     fn get_remote_user_name(&self) -> Option<String> {
-    let re = Regex::new(r"^(.+?)(💬)").unwrap();
-    match re.captures(&self.content) {
-        Some(t) => t.get(1).unwrap().as_str().parse().ok(),
-        None => None,
-    }
+        let re = Regex::new(r"^(.+?)(💬)").unwrap();
+        match re.captures(&self.content) {
+            Some(t) => t.get(1).unwrap().as_str().parse().ok(),
+            None => None,
+        }
     }
 }
 
@@ -106,7 +107,7 @@ impl ApNote {
 pub struct PublicKey {
     id: String,
     owner: String,
-    #[serde(rename = "publicKeyPem")] 
+    #[serde(rename = "publicKeyPem")]
     public_key_pem: String,
 }
 
@@ -124,27 +125,26 @@ fn send_to_outbox(activity: bool) {
     // activitystreams object fetch/store from db.  db objects need to serialize/deserialize this object if get -> fetch from db if post -> put to db, send to inbox of followers send to inbox of followers
 }
 
-
 #[derive(Deserialize)]
 pub struct WebFingerQuery {
-    resource: String
+    resource: String,
 }
 
 pub fn webfinger_json(query: WebFingerQuery) -> Value {
     // global -- single user
     json!({
-          "aliases": [
-            SERVER.global_id
-          ],
-          "links": [
-            {
-              "href": SERVER.global_id,
-              "rel": "self",
-              "type": "application/activity+json"
-            }
-          ],
-          "subject": format!("acct:server@{}", SERVER.domain),
-        })
+      "aliases": [
+        SERVER.global_id
+      ],
+      "links": [
+        {
+          "href": SERVER.global_id,
+          "rel": "self",
+          "type": "application/activity+json"
+        }
+      ],
+      "subject": format!("acct:server@{}", SERVER.domain),
+    })
 }
 
 /// get the server user json
@@ -167,12 +167,11 @@ pub fn server_actor_json() -> Actor {
         "owner": SERVER.global_id,
         "publicKeyPem": SERVER.public_key
     // TODO -- list server admin contact somewhere. summary or attachment
-    }})).unwrap()
+    }}))
+    .unwrap()
 }
 
-pub fn process_create_note(
-    v: Value,
-) -> Result<(), Box<dyn std::error::Error>> {
+pub fn process_create_note(v: Value) -> Result<(), Box<dyn std::error::Error>> {
     // Actions usually associated with notes
     // maybe there's a cleaner way to do this. cant iterate over types
     // TODO inbox forwarding https://www.w3.org/TR/activitypub/#inbox-forwarding
@@ -189,20 +188,22 @@ pub fn process_create_note(
     use crate::db::schema::users::dsl as u;
     //  if user not in db, insert
     //
-    let remote_username = ap_note.get_remote_user_name().unwrap_or(ap_note.attributed_to); // TODO -- prevent usernames iwth colons
-    // strip out username
+    let remote_username = ap_note
+        .get_remote_user_name()
+        .unwrap_or(ap_note.attributed_to); // TODO -- prevent usernames iwth colons
+                                           // strip out username
     let new_user = NewRemoteUser {
         username: remote_username.clone(),
         remote_user: true,
     };
 
     let new_user_id: i32 = conn.transaction(|| {
-    insert_into(u::users).values(&new_user).execute(conn).ok(); // TODO only check unique constraint error
-    // last insert id
-    u::users
-        .select(u::id)
-        .filter(u::username.eq(&remote_username))
-        .first(conn)
+        insert_into(u::users).values(&new_user).execute(conn).ok(); // TODO only check unique constraint error
+                                                                    // last insert id
+        u::users
+            .select(u::id)
+            .filter(u::username.eq(&remote_username))
+            .first(conn)
     })?;
 
     let new_remote_note = RemoteNoteInput {
@@ -221,12 +222,16 @@ pub fn process_create_note(
 }
 
 pub async fn process_accept(v: Value) -> Result<(), Error> {
-    let actor_id: &str = v.get("actor").ok_or("No actor found")?.as_str().ok_or("Not a string")?;
+    let actor_id: &str = v
+        .get("actor")
+        .ok_or("No actor found")?
+        .as_str()
+        .ok_or("Not a string")?;
     set_mutual_accepted(actor_id);
     Ok(())
 }
 
-fn set_mutual_accepted (the_actor_id: &str) -> Result<(), Error>{
+fn set_mutual_accepted(the_actor_id: &str) -> Result<(), Error> {
     use crate::db::schema::server_mutuals::dsl::*;
     let conn = &POOL.get()?;
     diesel::update(server_mutuals)
@@ -236,8 +241,8 @@ fn set_mutual_accepted (the_actor_id: &str) -> Result<(), Error>{
     Ok(())
 }
 
-// TODO clean this up 
-fn set_mutual_followed_back (the_actor_id: &str) -> Result<(), Error> {
+// TODO clean this up
+fn set_mutual_followed_back(the_actor_id: &str) -> Result<(), Error> {
     use crate::db::schema::server_mutuals::dsl::*;
     let conn = &POOL.get()?;
     diesel::update(server_mutuals)
@@ -250,8 +255,11 @@ fn set_mutual_followed_back (the_actor_id: &str) -> Result<(), Error> {
 fn should_accept(actor_id: &str) -> bool {
     use crate::db::schema::server_mutuals::dsl as s;
     let conn = &POOL.get().unwrap();
-    let sent_req: bool = s::server_mutuals.select(s::actor_id)
-        .filter(s::actor_id.eq(actor_id)).first::<String>(conn).is_ok();
+    let sent_req: bool = s::server_mutuals
+        .select(s::actor_id)
+        .filter(s::actor_id.eq(actor_id))
+        .first::<String>(conn)
+        .is_ok();
     sent_req
 }
 
@@ -262,15 +270,17 @@ pub async fn process_follow(v: Value) -> Result<(), Error> {
     let sent_req = true; // should_accept(actor);
     if sent_req {
         set_mutual_followed_back(actor)?;
-    // send accept follow
-     let accept = json!({
+        // send accept follow
+        let accept = json!({
         "@context": "https://www.w3.org/ns/activitystreams",
         "id": generate_activity_id(),
         "type": "Accept",
         "actor": SERVER.global_id,
         "object": &v,
         });
-     send_ap_message(&accept, actor_inbox.to_string()).await.unwrap();
+        send_ap_message(&accept, actor_inbox.to_string())
+            .await
+            .unwrap();
     }
     Ok(())
     // generate accept
@@ -282,7 +292,9 @@ pub fn get_connected_remotes() -> Vec<ServerMutual> {
     let conn = &POOL.get().unwrap();
     server_mutuals
         .filter(accepted.eq(true))
-        .filter(followed_back.eq(true)).load(conn).unwrap()
+        .filter(followed_back.eq(true))
+        .load(conn)
+        .unwrap()
 }
 
 pub async fn send_ap_message(
@@ -294,9 +306,15 @@ pub async fn send_ap_message(
     let client = reqwest::Client::new();
     let response = client
         .post(&destination)
-        .header("date", Utc::now().format("%a, %d %b %Y %H:%M:%S GMT").to_string()) //HTTP time format
+        .header(
+            "date",
+            Utc::now().format("%a, %d %b %Y %H:%M:%S GMT").to_string(),
+        ) //HTTP time format
         .body(msg)
-        .header("Content-Type", r#"application/ld+json; profile="https://www.w3.org/ns/activitystreams""#)
+        .header(
+            "Content-Type",
+            r#"application/ld+json; profile="https://www.w3.org/ns/activitystreams""#,
+        )
         .http_sign_outgoing()?
         .send()
         .await?;
@@ -306,8 +324,12 @@ pub async fn send_ap_message(
 pub async fn get_remote_actor(actor_id: &str) -> Result<Actor, Error> {
     debug!("Fetching remote actor {}", actor_id);
     let client = reqwest::Client::new();
-    let res = client.get(actor_id)
-        .header("Accept", r#"application/ld+json; profile="https://www.w3.org/ns/activitystreams""#)
+    let res = client
+        .get(actor_id)
+        .header(
+            "Accept",
+            r#"application/ld+json; profile="https://www.w3.org/ns/activitystreams""#,
+        )
         .send()
         .await?;
     let res: Actor = res.json().await?;
@@ -337,11 +359,14 @@ fn generate_server_follow(remote_actor: &str, my_inbox_url: &str) -> Result<Valu
     });
     use crate::db::schema::server_mutuals::dsl::*;
     // TODO use str instead of String
-    insert_into(server_mutuals).values(NewServerMutual{actor_id: remote_actor.to_owned(), inbox_url: my_inbox_url.to_owned()}).execute(conn)?;
+    insert_into(server_mutuals)
+        .values(NewServerMutual {
+            actor_id: remote_actor.to_owned(),
+            inbox_url: my_inbox_url.to_owned(),
+        })
+        .execute(conn)?;
     Ok(res)
-
 }
-
 
 /// Generate an AP create message from a new note
 pub fn new_note_to_ap_message(note: &Note, user: &User) -> Value {
@@ -405,9 +430,11 @@ impl HttpSignature for reqwest::RequestBuilder {
         } else {
             req.url().path().to_string()
         };
-        let unsigned = config.begin_sign(req.method().as_str(), &path_and_query, bt).unwrap();
+        let unsigned = config
+            .begin_sign(req.method().as_str(), &path_and_query, bt)
+            .unwrap();
         let sig_header = unsigned
-            .sign(server_key_id,|signing_string| {
+            .sign(server_key_id, |signing_string| {
                 let private_key = read_file(Path::new(&env::var("SIGNATURE_PRIVKEY").unwrap()));
                 let key_pair =
                     ring::signature::RsaKeyPair::from_pkcs8(&private_key.unwrap()).unwrap();
@@ -484,14 +511,17 @@ fn read_file(path: &std::path::Path) -> Result<Vec<u8>, MyError> {
 
 use warp::http;
 
-pub async fn verify_ap_message(method: &str, path_and_query: &str, headers: BTreeMap<String, String>) -> Result<(), Error> {
+pub async fn verify_ap_message(
+    method: &str,
+    path_and_query: &str,
+    headers: BTreeMap<String, String>,
+) -> Result<(), Error> {
     // TODO -- case insensitivity?
     // mastodon doesnt use created filed
     let config = Config::default()
         .set_expiration(Duration::seconds(3600))
         .dont_use_created_field();
-    let unverified = config
-        .begin_verify(method, path_and_query, headers)?;
+    let unverified = config.begin_verify(method, path_and_query, headers)?;
     let actor: Actor = get_remote_actor(unverified.key_id()).await?;
     let res = unverified.verify(|signature, signing_string| {
         let public_key: &[u8] = actor.public_key.public_key_pem.as_bytes();

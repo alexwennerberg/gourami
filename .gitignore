@@ -7,3 +7,6 @@ warp-diesel-ructe-sample/
 # env vars
 .env
 ansible/prod_dotenv
+ansible/inventory.dev
+ansible/inventory.prod
+
