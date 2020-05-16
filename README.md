@@ -1,4 +1,4 @@
-# Gourami
+# 🐟gourami
 ![Build and Test](https://github.com/alexwennerberg/gourami/workflows/Build%20and%20Test/badge.svg)
 
 An intentionally small, ultra-lightweight social media network (ActivityPub integration TBD)
@@ -17,10 +17,8 @@ Gourami differs from existing social networks in a number of ways:
 * **Simple and feature-averse** -- A simpler Gourami is much easier for me to develop, support and maintain. I want Gourami to be reliable software that people can build communities on top of, and severely limiting the feature set makes that much easier. Once I get Gourami to a certain core feature set, my work will be dedicated to maintenance and care, rather than feature additions. This will allow people to develop long-term, stable social networks, and also develop forks without worrying about losing upstream changes.
 
 Some goals of this project that are work in progress:
-* Support for [ActivityPub](https://activitypub.rocks/) federation
 * Additional accessibility features
-
-Read [this document](https://git.sr.ht/~alexwennerberg/gourami-social/tree/master/PHILOSOPHY.md) for more
+* RSS
 
 ## Dependencies:
 
@@ -29,6 +27,8 @@ Read [this document](https://git.sr.ht/~alexwennerberg/gourami-social/tree/maste
 * openssl
 
 ## Installation
+
+I put together a demo container! -- Link
 
 [Install Rustup](https://doc.rust-lang.org/cargo/getting-started/installation.html) or Cargo
 
@@ -42,11 +42,13 @@ Configuration is done via [dotenv](https://github.com/dotenv-rs/dotenv)
 
 Run the local server with `gourami_social run`
 
+Setup the database with  
+
 ## Deployment
 
-**Gourami is in alpha / development stage.** I have a small server running with some of my friends, but this is absolutely not ready for any sort of production environment, and a key feature, ActivityPub federation, is not finished yet.
+**Gourami is in alpha / development stage.**
 
-I think it'd be interesting to set this up so that it can be deployed on a Platform as a Service or Function as a Service offering, but I haven't found any great way to run Sqlite in that context. I may put together an ansible playbook or something.
+I would love if you gave Gourami a shot, but be aware that issues may arise. If you would like to follow or join my server, please reach out to me! I'm also happy to help anyone set up their instance.
 
 ## References
 
@@ -62,3 +64,5 @@ Many projects inspired my work here, and I want to mention them
 * [Honk](https://flak.tedunangst.com/post/ActivityPub-as-it-has-been-understood) and Ted Unangst's work with ActivityPub
 * https://github.com/rustodon/rustodon
 * https://github.com/LemmyNet/lemmy
+
+logo from https://twemoji.twitter.com/

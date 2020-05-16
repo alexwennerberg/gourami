@@ -24,13 +24,14 @@ pub async fn run_server() {
     let actor_json = warp::path::end()
         // In practice, the headers may not follow the spec
         // https://www.w3.org/TR/activitypub/#retrieving-objects
-        // .and(header::exact_ignore_case("accept", r#"application/ld+json; profile="https://www.w3.org/ns/activitystreams""#)
-        // .or(header::exact_ignore_case("accept", r#"application/ld+json"#))
-        // .or(header::exact_ignore_case("accept", r#"profile="https://www.w3.org/ns/activitystreams""#)
-            // )
-        // )
+        .and(header::exact_ignore_case("accept", r#"application/ld+json; profile="https://www.w3.org/ns/activitystreams""#)
+        .or(header::exact_ignore_case("accept", r#"application/ld+json"#))
+        .or(header::exact_ignore_case("accept", r#"profile="https://www.w3.org/ns/activitystreams""#))
+        .or(header::exact_ignore_case("accept", "application/json")
+            )
+        )
         // TODO content type 
-        .map(|| reply::json(&ap::server_actor_json()) // how do async work
+        .map(|_| reply::json(&ap::server_actor_json()) // how do async work
         );
 
     let home = warp::path::end()
@@ -101,7 +102,9 @@ pub async fn run_server() {
         },
     );
 
-    let static_files = warp::path("static").and(warp::fs::dir("./static"));
+    // couldn't figure out how to get this folder to render on root properly
+    let robots = warp::path("robots.txt").and(warp::fs::file("./static/robots.txt"));
+    let static_files = warp::path("static").and(warp::fs::dir("./static")).or(robots);
 
     // activityPub stuff
     // This stuff should filter based on the application headers

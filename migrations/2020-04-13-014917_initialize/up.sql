@@ -69,4 +69,4 @@ create table server_mutuals (
   outbox_url VARCHAR(1000)
 );
 
-create unique index unique_inbox on server_mutuals(inbox_url);
+create unique index unique_inbox on server_mutuals(actor_id);

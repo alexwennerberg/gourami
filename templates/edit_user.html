@@ -4,10 +4,10 @@
 <b>user:</b> {{ user.username }} (#{{user.id}})
 <br>
 <label for="bio"><b>bio:</b></label>
-<input type="text" id="bio" name="bio" value="{{user.bio}}">
+<input class="basic-input" type="text" id="bio" name="bio" value="{{user.bio}}">
 <br>
 <label for="email"><b>email:</b></label>
-<input type="text" id="email" name="email" value=
+<input class="basic-input" type="text" id="email" name="email" value=
 {% match user.email %}
   {%when Some with (e) %}
   "{{e}}">

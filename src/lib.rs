@@ -262,6 +262,10 @@ pub fn new_note(
             .values(new_notification)
             .execute(conn)?;
         for mention in mentions {
+            // skip if you reply to yourself
+            if auth_user.username == mention {
+                continue
+            }
             // create reply notification
             // I thinks this may work but worry about multithreading
             let user_id = u::users
@@ -287,10 +291,6 @@ pub fn new_note(
             }
         }
     }
-    // generate activitypub object from post request
-    // send to outbox
-    // add notification
-    // if request made from web form
     Ok(inserted_note)
 }
 

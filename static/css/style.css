@@ -37,6 +37,7 @@
 
 .navlinks {
   font-size: 1.5em;
+  padding-left: 2px;
 }
 
 a:link, a:visited {
@@ -87,6 +88,23 @@ a:link, a:visited {
   font-size: 1em;
 }
 
+.input-box {
+  padding-right: 1em;
+  margin: 0 auto;
+  width: 90%;
+}
+
+@media only screen and (max-width: 600px) {
+    body{
+          background-color: #006994;
+          font-size: 18px; 
+    }
+}
+
+.basic-input {
+  font-size: 1em;
+}
+
 .submit-button-style {
   background-color: #001f94; /* Green */
   border: none;
@@ -98,10 +116,6 @@ a:link, a:visited {
   font-size: 16px;
 }
 
-.input-box {
-  margin: 0 auto;
-  width: 90%;
-}
 
 .text-right {
   text-align: right;

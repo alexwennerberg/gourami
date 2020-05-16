@@ -1,9 +1,11 @@
 use super::schema::notes;
+use std::env;
 use crate::db::user::User;
 use ammonia;
 use maplit::hashset;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
+use chrono::Utc;
 
 use crate::ap::SERVER;
 
@@ -19,14 +21,13 @@ pub struct Note {
     pub user_id: i32,
     pub in_reply_to: Option<i32>,
     pub content: String,
-    pub created_time: String,
+    pub created_time: chrono::NaiveDateTime,
     pub neighborhood: bool,
     pub is_remote: bool,
     pub remote_url: Option<String>,
     pub remote_id: Option<String>,
 }
 
-use std::env;
 
 impl Note {
    pub fn get_url(&self) -> String {
@@ -38,6 +39,26 @@ impl Note {
        // remove first reply string
        // username not user id
        format!("{}:{}💬 {}", SERVER.domain, username, self.content)
+   }
+
+   pub fn relative_timestamp(&self) -> String {
+       // Maybe use some fancy library here
+       let diff = Utc::now().naive_utc().signed_duration_since(self.created_time);
+       if diff.num_days() > 30 {
+           return format!("{}", self.created_time.date());
+       }
+       else if diff.num_hours() > 24 {
+           return format!("{}d", diff.num_days());
+       }
+       else if diff.num_minutes() > 60 {
+           return format!("{}h", diff.num_hours());
+       }
+       else if diff.num_seconds() > 60 {
+           return format!("{}m", diff.num_minutes());
+       }
+       else {
+           return format!("{}s", diff.num_seconds());
+       }
    }
 }
 

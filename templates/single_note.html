@@ -1,15 +1,16 @@
 
 {% if note.note.is_remote %}
-<div class="remote-note">
+<article class="remote-note">
 {% else %}
-<div class="note">
+<article class="note">
 {% endif %}
   <div class="note-meta">
   {% if note.note.neighborhood %}🏠{%endif%}
   {% if note.note.is_remote %}🌎{%endif%}
   <a href="/note/{{note.note.id}}">📝{{note.note.id}}</a>
-  {{note.note.created_time}} <a
-    class="bold" href="/user/{{note.username}}">@{{note.username}}</a>
+  <a
+    class="bold"
+    href="/user/{{note.username}}">@{{note.username}}</a> {{note.note.relative_timestamp()}}
 {% if global.logged_in  %}
 <a title="reply" href="#" onclick="reply({{note.note.id}}, '{{note.username}}')">↪</a>
   {% endif %}
@@ -25,4 +26,4 @@
   <div class="note-content">
   {{note.note.content|safe}} 
   </div>
-  </div>
+</article>

@@ -190,6 +190,7 @@ pub fn process_create_note(
     //  if user not in db, insert
     //
     let remote_username = ap_note.get_remote_user_name().unwrap_or(ap_note.attributed_to); // TODO -- prevent usernames iwth colons
+    // strip out username
     let new_user = NewRemoteUser {
         username: remote_username.clone()
     };
@@ -318,6 +319,10 @@ pub async fn get_remote_actor(actor_id: &str) -> Result<Actor, Error> {
     Ok(res)
 }
 
+pub async fn unfollow_remote_server(remote_url: &str) -> Result<(), Error> {
+    Ok(())
+}
+
 pub async fn follow_remote_server(remote_url: &str) -> Result<(), Error> {
     let remote_actor: Actor = get_remote_actor(remote_url).await?;
     let inbox_url = &remote_actor.inbox;
@@ -331,7 +336,7 @@ fn generate_server_follow(remote_actor: &str, my_inbox_url: &str) -> Result<Valu
     let conn = &POOL.get()?;
     let res = json!({
         "@context": "https://www.w3.org/ns/activitystreams",
-        "id": "https://my-example.com/my-first-follow",
+        "id": generate_activity_id(),
         "type": "Follow",
         "actor": SERVER.global_id,
         "object": remote_actor,
