@@ -1,0 +1,3 @@
+[dev]
+# define the username and hostname that you use for ssh connection, and specify the domain
+domain=mydomain.su
