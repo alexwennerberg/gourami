@@ -9,10 +9,19 @@ use http::header::{HeaderName, HeaderValue, CONTENT_TYPE};
 
 pub async fn run_server() {
     // NOT TESTED YET
-    let public = false; // std::env::var("PUBLIC").unwrap_or("false");
+    let public = std::env::var("PUBLIC").ok() == Some("1".to_owned());
     let session_filter = move || session::create_session_filter(public).clone();
     let private_session_filter = move || session::create_session_filter(false).clone();
-    // TODO - -create a filter that gives only certain users access to pages
+
+    // Background worker for sending activitypub messages
+    let (snd, mut rcv) = tokio::sync::mpsc::unbounded_channel::<String>();
+    tokio::spawn(async move {
+        while let Some(request) = rcv.recv().await {
+            // Run request
+        }
+    });
+
+    let with_sender = warp::any().map(move || snd.clone());
 
     // we have to pass the full paths for redirect to work without javascript
     //
@@ -84,14 +93,12 @@ pub async fn run_server() {
 
     let do_logout = path("logout").and(cookie::cookie("EXAUTH")).map(do_logout);
 
-    // CRUD actions
     let create_note = path("create_note")
-        .and(session_filter())
+        .and(private_session_filter())
         .and(form())
-        // Verbose -- see if you can refactor
         .and_then(handle_new_note_form);
 
-    let delete_note = path("delete_note").and(session_filter()).and(form()).map(
+    let delete_note = path("delete_note").and(private_session_filter()).and(form()).map(
         |u: Option<User>, f: DeleteNoteRequest| match u {
             Some(u) => {
                 delete_note(f.note_id).unwrap(); // TODO fix unwrap
@@ -148,8 +155,6 @@ pub async fn run_server() {
         .or(delete_note)
         .or(edit_user);
     let api_post = post_server_inbox;
-    // let api
-    // catch all for any other paths
 
     let routes = warp::get()
         .and(static_json.or(html_renders))
