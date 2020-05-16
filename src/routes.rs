@@ -4,6 +4,7 @@ use env_logger;
 use warp::{header, body, body::form, body::json, filters::cookie, filters::query::query, path, reply};
 use serde::de::DeserializeOwned;
 use warp::reject::{self, Rejection};
+use std::time::Duration;
 use warp::reply::Response;
 use http::header::{HeaderName, HeaderValue, CONTENT_TYPE};
 
@@ -14,17 +15,23 @@ pub async fn run_server() {
     let private_session_filter = move || session::create_session_filter(false).clone();
 
     // Background worker for sending activitypub messages
-    let (snd, mut rcv) = tokio::sync::mpsc::unbounded_channel::<String>();
+    // TODO -- Improve concurrency. each request is blocking.
+    let (snd, mut rcv) = tokio::sync::mpsc::unbounded_channel::<(Value, Vec<String>)>();
     tokio::spawn(async move {
-        while let Some(request) = rcv.recv().await {
-            // Run request
+        while let Some((msg, destinations)) = rcv.recv().await {
+            for destination in destinations {
+                // no retries or anything yet
+                let res = ap::send_ap_message(&msg, destination).await.ok();
+                if res.is_none() {
+                    error!("AP message sending failed");
+                }
+            }
+            // Run requst
         }
     });
 
     let with_sender = warp::any().map(move || snd.clone());
 
-    // we have to pass the full paths for redirect to work without javascript
-    //
     let webfinger = warp::path!(".well-known" / "webfinger")
         .and(query())
         // TODO content type
@@ -96,6 +103,7 @@ pub async fn run_server() {
     let create_note = path("create_note")
         .and(private_session_filter())
         .and(form())
+        .and(with_sender)
         .and_then(handle_new_note_form);
 
     let delete_note = path("delete_note").and(private_session_filter()).and(form()).map(

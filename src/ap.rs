@@ -270,7 +270,7 @@ pub async fn process_follow(v: Value) -> Result<(), Error> {
         "actor": SERVER.global_id,
         "object": &v,
         });
-     send_ap_message(accept, vec![actor_inbox.to_string()]).await.unwrap();
+     send_ap_message(&accept, actor_inbox.to_string()).await.unwrap();
     }
     Ok(())
     // generate accept
@@ -286,36 +286,31 @@ pub fn get_destinations() -> Vec<String> {
 }
 
 pub async fn send_ap_message(
-    ap_message: Value,
-    destinations: Vec<String>, // really vec of URLs
+    ap_message: &Value,
+    destination: String, // really vec of URLs
 ) -> Result<(), Error> {
-    // Right now we have only once delivery
-    for destination in destinations {
-        // bad
-        let msg = Vec::from(ap_message.to_string().as_bytes());
-        let client = reqwest::Client::new();
-        let response = client
-            .post(&destination)
-            .header("date", Utc::now().format("%a, %d %b %Y %H:%M:%S GMT").to_string()) //HTTP time format
-            .body(msg)
-            .header("Content-Type", r#"application/ld+json; profile="https://www.w3.org/ns/activitystreams""#)
-            .http_sign_outgoing()?
-            .send()
-            .await?;
-        debug!("{:?}", response.text().await?);
-    }
+    debug!("Sending outgoing AP message to {}", destination);
+    let msg = Vec::from(ap_message.to_string().as_bytes());
+    let client = reqwest::Client::new();
+    let response = client
+        .post(&destination)
+        .header("date", Utc::now().format("%a, %d %b %Y %H:%M:%S GMT").to_string()) //HTTP time format
+        .body(msg)
+        .header("Content-Type", r#"application/ld+json; profile="https://www.w3.org/ns/activitystreams""#)
+        .http_sign_outgoing()?
+        .send()
+        .await?;
+    debug!("{:?}", response.text().await?);
     Ok(())
 }
 pub async fn get_remote_actor(actor_id: &str) -> Result<Actor, Error> {
+    debug!("Fetching remote actor {}", actor_id);
     let client = reqwest::Client::new();
-    println!("{:?}", actor_id);
     let res = client.get(actor_id)
         .header("Accept", r#"application/ld+json; profile="https://www.w3.org/ns/activitystreams""#)
         .send()
         .await?;
-    println!("{:?}", res);
     let res: Actor = res.json().await?;
-    println!("{:?}", res);
     Ok(res)
 }
 
@@ -328,7 +323,7 @@ pub async fn follow_remote_server(remote_url: &str) -> Result<(), Error> {
     let inbox_url = &remote_actor.inbox;
     let actor_id = &remote_actor.id;
     let msg = generate_server_follow(actor_id, inbox_url)?;
-    send_ap_message(msg, vec![inbox_url.to_owned()]).await?;
+    send_ap_message(&msg, inbox_url.to_owned()).await?;
     Ok(())
 }
 

@@ -202,15 +202,16 @@ struct NewNoteRequest {
     redirect_url: String,
     neighborhood: Option<String>, // "on" TODO -- add a custom serialization here
 }
+use tokio::sync::mpsc::UnboundedSender;
 
-async fn handle_new_note_form(u: Option<User>, f: NewNoteRequest) -> Result<impl Reply, Rejection> {
+async fn handle_new_note_form(u: Option<User>, f: NewNoteRequest, sender: UnboundedSender<(Value, Vec<String>)>) -> Result<impl Reply, Rejection> {
     match u {
         Some(u) => {
             let n = new_note(&u, &f.note_input, f.neighborhood.is_some()).unwrap();
             if n.neighborhood {
                 let nj = ap::new_note_to_ap_message(&n, &u);
                 let destinations = ap::get_destinations();
-                ap::send_ap_message(nj, destinations).await.unwrap(); // TODO error handling
+                sender.send((nj, destinations)).ok();
             }
             let red_url: http::Uri = f.redirect_url.parse().unwrap();
             Ok(redirect(red_url))
