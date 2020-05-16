@@ -192,7 +192,8 @@ pub fn process_create_note(
     let remote_username = ap_note.get_remote_user_name().unwrap_or(ap_note.attributed_to); // TODO -- prevent usernames iwth colons
     // strip out username
     let new_user = NewRemoteUser {
-        username: remote_username.clone()
+        username: remote_username.clone(),
+        remote_user: true,
     };
 
     let new_user_id: i32 = conn.transaction(|| {
@@ -213,7 +214,6 @@ pub fn process_create_note(
         remote_id: ap_note.id,
         remote_url: ap_note.url,
     };
-    println!("{:?}", new_remote_note);
     insert_into(n::notes)
         .values(&new_remote_note)
         .execute(conn)?;
@@ -276,11 +276,11 @@ pub async fn process_follow(v: Value) -> Result<(), Error> {
     // generate accept
 }
 
-pub fn get_destinations() -> Vec<String> {
+pub fn get_connected_remotes() -> Vec<ServerMutual> {
     // maybe lazy static this
     use crate::db::schema::server_mutuals::dsl::*;
     let conn = &POOL.get().unwrap();
-    server_mutuals.select(inbox_url)
+    server_mutuals
         .filter(accepted.eq(true))
         .filter(followed_back.eq(true)).load(conn).unwrap()
 }
@@ -314,16 +314,15 @@ pub async fn get_remote_actor(actor_id: &str) -> Result<Actor, Error> {
     Ok(res)
 }
 
-pub async fn unfollow_remote_server(remote_url: &str) -> Result<(), Error> {
-    Ok(())
-}
-
-pub async fn follow_remote_server(remote_url: &str) -> Result<(), Error> {
+// TODO cleanup interface
+pub async fn whitelist_or_follow_remote_server(remote_url: &str, send: bool) -> Result<(), Error> {
     let remote_actor: Actor = get_remote_actor(remote_url).await?;
     let inbox_url = &remote_actor.inbox;
     let actor_id = &remote_actor.id;
     let msg = generate_server_follow(actor_id, inbox_url)?;
-    send_ap_message(&msg, inbox_url.to_owned()).await?;
+    if send {
+        send_ap_message(&msg, inbox_url.to_owned()).await?;
+    }
     Ok(())
 }
 
@@ -407,7 +406,6 @@ impl HttpSignature for reqwest::RequestBuilder {
             req.url().path().to_string()
         };
         let unsigned = config.begin_sign(req.method().as_str(), &path_and_query, bt).unwrap();
-        println!("{:?}", &unsigned);
         let sig_header = unsigned
             .sign(server_key_id,|signing_string| {
                 let private_key = read_file(Path::new(&env::var("SIGNATURE_PRIVKEY").unwrap()));
@@ -424,14 +422,12 @@ impl HttpSignature for reqwest::RequestBuilder {
                     )
                     .unwrap();
                 // let digest = digest::digest(&digest::SHA256, &signing_string.as_bytes());
-                println!("{:?}", &signing_string);
                 let hexencode = base64::encode(&signature);
                 Ok(hexencode) as Result<_, Error>
             })?
             .signature_header();
         // this SHOULD be OK
         // host and date?
-        println!("{:?}", &sig_header);
         let result = self.header("Signature", sig_header);
         println!("{:?}", &result);
         Ok(result)
@@ -494,7 +490,6 @@ pub async fn verify_ap_message(method: &str, path_and_query: &str, headers: BTre
     let config = Config::default()
         .set_expiration(Duration::seconds(3600))
         .dont_use_created_field();
-    println!("{:?}", headers);
     let unverified = config
         .begin_verify(method, path_and_query, headers)?;
     let actor: Actor = get_remote_actor(unverified.key_id()).await?;
@@ -507,117 +502,5 @@ pub async fn verify_ap_message(method: &str, path_and_query: &str, headers: BTre
         key.verify(signing_string.as_bytes(), &hexdecode).unwrap();
         true
     });
-    println!("{:?}", unverified);
     Ok(())
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    fn prepare_headers() -> HashMap<String, String> {
-        let mut headers = HashMap::new();
-        headers.insert(
-            "Content-Type".to_owned(),
-            "application/activity+json".to_owned(),
-        );
-        headers
-    }
-
-    #[test]
-    fn test_verify_rsa() {
-        sign_and_verify_rsa(
-            Path::new(&env::var("SIGNATURE_PRIVKEY").unwrap()),
-            Path::new(&env::var("SIGNATURE_PUBKEY").unwrap()),
-        )
-        .unwrap()
-    }
-
-    #[test]
-    fn test_verify_ap_message() {
-        let mut headers = HashMap::new();
-        headers.insert(
-            "Content-Type".to_owned(),
-            "application/activity+json".to_owned(),
-        );
-        headers.insert(
-            "date".to_owned(),
-            "Fri, 08 May 2020 00:42:41 +0000".to_owned(),
-        );
-        let sample = "keyId=\"http://localhost:3030/actor#key\",algorithm=\"hs2019\",headers=\"(request-target) content-type date\",signature=\"YCJ7bwIX8y6rJ9Be31wm4ZkiBqper4vGydPHc/avBRE7D7SpIfWO+aA00VQcHlAGYjNRLEWiA5SkpszW3wnAs5JzuRWK01pELsEluYyE54/ou+rc06DxPt9beb9mIrbPs9EByN6epkYAGuKna8xoE7qsjhpfz5Q0SfNP3qS10uLaP5/puFCxMVgDIb3wMiJz1WiCzWZ26e5Wujoea8l5HS37V4xYhqicXmTvU1SzEiC+Qsn3RteWTesItAEDID5CFOhFizkSvgYVNjpTMwbLf1QiqyfgctVQIYt4fuQSTlcdKjhpS1cAxKTJg5hFQ9vjo1Qm1NP6XBALcRWpAIw5SA==\"";
-        headers.insert("signature".to_owned(), sample.to_owned());
-        verify_ap_message("post", "/inbox", headers);
-    }
-
-    #[test]
-    fn test_send_ap() {
-        let body: Value = serde_json::from_str(r#"{"foo": "bar"}"#).unwrap();
-        let req = reqwest::Client::new()
-            .post("http://localhost:3030/inbox")
-            // for mastodon config -- newer versions of httsig dont use this
-            .header("date", Utc::now().to_rfc2822())
-            .json(&body)
-            .header(
-                "Content-Type",
-                "application/activity+json",
-            )
-            .http_sign_outgoing()
-            .unwrap();
-    }
-
-    #[test]
-    fn test_empty_string() {
-        // to write
-    }
-
-    #[test] // TODO -- set env variales in test
-    fn test_mastodon_create_status_example() {
-        let create_note_mastodon: Value = serde_json::from_str(r#"{
-              "id": "https://mastodon.social/users/alexwennerberg/statuses/104028309437021899/activity",
-              "type": "Create",
-              "actor": "https://mastodon.social/users/alexwennerberg",
-              "published": "2020-04-20T01:27:10Z",
-              "to": [
-                "https://www.w3.org/ns/activitystreams#Public"
-              ],
-              "cc": [
-                "https://mastodon.social/users/alexwennerberg/followers"
-              ],
-              "object": {
-                "id": "https://mastodon.social/users/alexwennerberg/statuses/104028309437021899",
-                "type": "Note",
-                "summary": null,
-                "inReplyTo": null,
-                "published": "2020-04-20T01:27:10Z",
-                "url": "https://mastodon.social/@alexwennerberg/104028309437021899",
-                "attributedTo": "https://mastodon.social/users/alexwennerberg",
-                "to": [
-                  "https://www.w3.org/ns/activitystreams#Public"
-                ],
-                "cc": [
-                  "https://mastodon.social/users/alexwennerberg/followers"
-                ],
-                "sensitive": false,
-                "atomUri": "https://mastodon.social/users/alexwennerberg/statuses/104028309437021899",
-                "inReplyToAtomUri": null,
-                "conversation": "tag:mastodon.social,2020-04-20:objectId=167583625:objectType=Conversation",
-                "content": "hello world",
-                "contentMap": {
-                  "en": "<p>&lt;a href=&quot;<a href=\"https://google.com\" rel=\"nofollow noopener noreferrer\" target=\"_blank\"><span class=\"invisible\">https://</span><span class=\"\">google.com</span><span class=\"invisible\"></span></a>&quot;&gt;hi&lt;/a&gt;</p>"
-                },
-                "attachment": [],
-                "tag": [],
-                "replies": {
-                  "id": "https://mastodon.social/users/alexwennerberg/statuses/104028309437021899/replies",
-                  "type": "Collection",
-                  "first": {
-                    "type": "CollectionPage",
-                    "next": "https://mastodon.social/users/alexwennerberg/statuses/104028309437021899/replies?only_other_accounts=true&page=true",
-                    "partOf": "https://mastodon.social/users/alexwennerberg/statuses/104028309437021899/replies",
-                    "items": []
-                  }
-                }
-              }
-            }"#).unwrap();
-    }
 }

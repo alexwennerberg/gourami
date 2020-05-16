@@ -50,7 +50,7 @@ pub struct User {
     pub password: Option<String>,
     pub admin: bool,
     pub show_email: bool,
-    pub remote_url: Option<String>,
+    pub remote_user: bool,
 }
 
 impl User {
@@ -102,6 +102,7 @@ pub struct NewUser<'a> {
 #[table_name = "users"]
 pub struct NewRemoteUser {
     pub username: String,
+    pub remote_user: bool,
 }
 // impl NewUser {
 

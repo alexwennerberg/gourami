@@ -28,7 +28,7 @@ table! {
         password -> Nullable<Varchar>,
         admin -> Bool,
         show_email -> Bool,
-        remote_url -> Nullable<Varchar>,
+        remote_user -> Bool,
     }
 }
 

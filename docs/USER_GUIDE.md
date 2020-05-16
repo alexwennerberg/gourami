@@ -6,9 +6,13 @@ You will get a notification when someone tags your username in a post or if they
 
 ## Creating a note
 
-Enter your text in the note box, then click create note. The first post that you tag (via 📝X or >>X, where X is the post number) will be considered a post(s) you're replying to.  #TODO implement
+Enter your text in the note box, then click create note. The first post that you tag (via 📝X or >>X, where X is the post number) will be considered a post(s) you're replying to.  
 
-For every local post or user that you tag in a note, that post / user's owner will receive a notification.
+For every local post or user that you tag in a note (using @), that user will receive a notification.
+
+HTML tags will be stripped from your note input, except for p, br, and span.
+
+(write about how remote notes are handled)
 
 ## Audiences
 

@@ -9,9 +9,8 @@ CREATE TABLE users (
   password VARCHAR(255),
   admin BOOLEAN default false,
   show_email BOOLEAN default false,
-  remote_url VARCHAR(100)
+  remote_user BOOLEAN default false
 );
-create unique index unique_remote on users(remote_url);
 CREATE UNIQUE INDEX users_username_idx ON users (username);
 CREATE UNIQUE INDEX users_email_idx ON users (email);
 

@@ -14,17 +14,28 @@ async fn main() {
         .subcommand(App::new("run").about("Run server"))
         .subcommand(App::new("follow")
                     .arg(Arg::with_name("URL")
-                         .help("url of the remote server to follow")
+                         .help("url of the AP actor to follow")
                          .required(true)
                          .index(1)
                          )
                     )
+        .subcommand(App::new("whitelist")
+         .arg(Arg::with_name("URL")
+              .help("url of the remote AP actor to whitelist. gourami will reject follows except from whitelisted AP actors. Following a remote actor also automatically whitelists that server.")
+              .required(true)
+              .index(1)
+              )
+         )
+
         .get_matches();
-    if let Some(m) = matches.subcommand_matches("run") {
+    if let Some(_) = matches.subcommand_matches("run") {
         run_server().await;
     } else if let Some(m) = matches.subcommand_matches("follow") {
             let url = m.value_of("URL").unwrap();
-            ap::follow_remote_server(url).await.unwrap();
+            ap::whitelist_or_follow_remote_server(url, true).await.unwrap();
+    } else if let Some(m) = matches.subcommand_matches("whitelist") {
+            let url = m.value_of("URL").unwrap();
+            ap::whitelist_or_follow_remote_server(url, false).await.unwrap();
     }
         // reset password
         // follow remote

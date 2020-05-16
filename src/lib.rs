@@ -24,6 +24,7 @@ use askama::Template;
 use db::conn::POOL;
 use db::note;
 use db::note::{Note, NoteInput};
+use db::server_mutuals::{ServerMutual};
 use db::notification::{NewNotification, NewNotificationViewer, Notification, NotificationViewer};
 use db::user::{NewUser, RegistrationKey, User, Username};
 use diesel::insert_into;
@@ -110,6 +111,7 @@ struct RegisterTemplate<'a> {
 struct ServerInfoTemplate<'a> {
     global: Global<'a>,
     users: Vec<User>,
+    server_mutuals: Vec<ServerMutual>
 }
 
 const PAGE_SIZE: i64 = 50;
@@ -210,7 +212,9 @@ async fn handle_new_note_form(u: Option<User>, f: NewNoteRequest, sender: Unboun
             let n = new_note(&u, &f.note_input, f.neighborhood.is_some()).unwrap();
             if n.neighborhood {
                 let nj = ap::new_note_to_ap_message(&n, &u);
-                let destinations = ap::get_destinations();
+                let destinations = ap::get_connected_remotes()
+                    .into_iter()
+                    .map(|s| s.inbox_url).collect();
                 sender.send((nj, destinations)).ok();
             }
             let red_url: http::Uri = f.redirect_url.parse().unwrap();
@@ -359,12 +363,11 @@ fn do_register(form: RegisterForm, query_params: serde_json::Value) -> impl Repl
                 password: &hash,
                 email: &form.email,
             };
-            // todo data validation
             insert_into(users).values(new_user).execute(conn).unwrap();
 
-            // insert into database
         }
     }
+    // database
     // not good
     do_login(LoginForm {
         username: form.username,
@@ -450,10 +453,8 @@ pub struct UserNote {
 }
 
 fn get_single_note(note_id: i32) -> Option<Vec<UserNote>> {
-    // doing some fancy recursive stuff
+    // Get note and all children, recursively
     let conn = &POOL.get().unwrap();
-    // TODO -- it isnt serializing ids right
-    // Username is a hack because there are two ID columns and it doesnt work right
     let results: Vec<(Note, Username)> = diesel::sql_query(format!(
         r"with recursive tc( p )
       as ( values({})
@@ -481,10 +482,10 @@ fn get_single_note(note_id: i32) -> Option<Vec<UserNote>> {
     )
 }
 
-fn get_users() -> Result<Vec<User>, diesel::result::Error> {
+fn get_local_users() -> Result<Vec<User>, diesel::result::Error> {
     use db::schema::users::dsl as u;
     let conn = &POOL.get().unwrap();
-    let users = u::users.load(conn);
+    let users = u::users.filter(u::remote_user.eq(false)).load(conn);
     users
 }
 
@@ -620,10 +621,12 @@ impl<'a> Default for ErrorTemplate<'a> {
 }
 
 fn server_info_page(auth_user: Option<User>) -> impl Reply {
-    let users = get_users().unwrap();
+    let users = get_local_users().unwrap();
+    let server_mutuals = ap::get_connected_remotes();
     render_template(&ServerInfoTemplate {
         global: Global::create(auth_user, "/server"),
         users: users,
+        server_mutuals: server_mutuals
     })
 }
 

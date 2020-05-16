@@ -1,17 +1,39 @@
 {% extends "base.html" %}
 {% block content %}
 <div class="text-block padded">
-  Welcome to Gourami, an intentionally small, private, minimalist, invite-only social network. See the <a href="https://github.com/alexwennerberg/gourami/blob/master/docs/USER_GUIDE.md">user guide</a> for more info or look at the <a href="https://github.com/alexwennerberg/gourami">project page</a>! Here is a list of users on this server -- maybe introduce yourself to someone you don't know! By default your email is not shared, but you can share it to other users on this instance on your edit user page.
+  Welcome to Gourami, an intentionally small, minimalist, invite-only <a href="https://activitypub.rocks/">ActivityPub</a>-based social network. See the <a href="https://github.com/alexwennerberg/gourami/blob/master/docs/USER_GUIDE.md">user guide</a> for more info or look at the <a href="https://github.com/alexwennerberg/gourami">project page</a>! This server can connect with other Gourami servers or other services that implement ActivityPub through the neighborhood. Right now, we are linked with the following actors:
+  <br>
+<table>
+{% for server in server_mutuals %}
+<tr>
+  <td>
+    <b><a href="{{server.actor_id}}">{{server.actor_id}}</a></b>
+  </td>
+</tr>
+{%endfor%}
+</table>
+
+<br>
+Here is a list of users on this server -- maybe introduce yourself to someone you don't know! By default your email is not shared, but you can share it to other users on this instance on your edit user page.
 
 <br>
 <table>
 <tr>
   <th>username</th>
+  <th>email</th>
   <th>bio</th>
 </tr>
 {% for user in users %}
 <tr>
   <td><a href="/user/{{user.username}}">{{user.username}}</a> {%if user.admin %}<em>admin</em>{%endif%}</td>
+  <td>
+  {% match user.email %}
+    {% when Some with (e) %}
+    {% if user.show_email %}
+    <a href="mailto:{{e}}">{{e}}</a></td>
+    {% endif %}
+  {% when None %}
+    {%endmatch%}
   <td>{{user.bio}}</td>
 </tr>
 {% endfor %}

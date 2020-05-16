@@ -3,12 +3,12 @@ use super::schema::server_mutuals;
 
 #[derive(Queryable, PartialEq, Debug)]
 pub struct ServerMutual {
-    id: i32,
-    actor_id: String,
-    accepted: bool,
-    followed_back: bool,
-    inbox_url: String,
-    outbox_url: String, // not implemented yet
+    pub id: i32,
+    pub actor_id: String,
+    pub inbox_url: String,
+    pub accepted: bool,
+    pub followed_back: bool,
+    pub outbox_url: Option<String>, // not implemented yet
 }
 
 #[derive(Insertable)]
