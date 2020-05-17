@@ -723,15 +723,15 @@ pub async fn post_inbox(
     for (k, v) in headers.iter() {
         headersbtree.insert(k.as_str().to_owned(), v.to_str().unwrap().to_owned());
     }
-    ap::verify_ap_message("POST", "/inbox", headersbtree)
+    let domain = ap::verify_ap_message("POST", "/inbox", headersbtree)
         .await
-        .unwrap(); // slash or empty string?
+        .unwrap(); // get the domain -- we use this for forgery checking
     let msg_type = message.get("type").unwrap().as_str().unwrap();
     debug!("Received ActivityPub message of type {}", msg_type); // TODO improve logging
     match msg_type {
-        "Create" => ap::process_create_note(message).unwrap(),
-        "Follow" => ap::process_follow(message).await.unwrap(),
-        "Accept" => ap::process_accept(message).await.unwrap(),
+        "Create" => ap::process_create_note(message, &domain).unwrap(),
+        "Follow" => ap::process_follow(message, &domain).await.unwrap(),
+        "Accept" => ap::process_accept(message, &domain).await.unwrap(),
         _ => (),
     }
     // thtas it!

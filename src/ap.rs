@@ -59,7 +59,7 @@ fn generate_activity_id() -> String {
 pub struct CreateNote {
     // Maybe use AP crate
     id: String,
-    note: ApNote,
+    object: ApNote,
     actor: Actor,
 }
 
@@ -171,23 +171,37 @@ pub fn server_actor_json() -> Actor {
     .unwrap()
 }
 
-pub fn process_create_note(v: Value) -> Result<(), Box<dyn std::error::Error>> {
-    // Actions usually associated with notes
-    // maybe there's a cleaner way to do this. cant iterate over types
+use url::Url;
+
+pub fn check_domains_match(a: &str, b: &str) -> Result<String, Error> {
+    if Url::parse(a)?.domain() == Url::parse(b)?.domain() {
+        return Ok(Url::parse(a)?.domain().ok_or("No domain found")?.to_owned());
+    }
+    return Err(Error::MiscError("Domain Mismatch".to_owned()));
+}
+
+// tHis is a mess
+pub fn process_create_note(v: Value, domain: &str) -> Result<(), Error> {
     // TODO inbox forwarding https://www.w3.org/TR/activitypub/#inbox-forwarding
     //
     let conn = &POOL.get()?;
-    // Get actor
-    // TODO -- look into this
-    let object = v.get("object").ok_or("No AP object found")?;
-    let _type = object.get("type").ok_or("No object type found")?;
-    // match type == note
-    let ap_note: ApNote = serde_json::from_value(object.to_owned())?;
+    let create_note: CreateNote = serde_json::from_value(v)?;
 
+    // do some domain verification
+    check_domains_match(domain, &create_note.actor.id)?;
+    check_domains_match(domain, &create_note.id)?;
+    check_domains_match(domain, &create_note.object.id)?;
+    check_domains_match(domain, &create_note.object.attributed_to)?;
+
+    // check if we should accept the note
     use crate::db::schema::notes::dsl as n;
     use crate::db::schema::users::dsl as u;
     //  if user not in db, insert
     //
+    let ap_note = create_note.object;
+    if !should_accept(&ap_note.id) {
+        return Err(Error::MiscError("Not someone we are following".to_owned()));
+    }
     let remote_username = ap_note
         .get_remote_user_name()
         .unwrap_or(ap_note.attributed_to); // TODO -- prevent usernames iwth colons
@@ -221,13 +235,14 @@ pub fn process_create_note(v: Value) -> Result<(), Box<dyn std::error::Error>> {
     return Ok(());
 }
 
-pub async fn process_accept(v: Value) -> Result<(), Error> {
+pub async fn process_accept(v: Value, domain: &str) -> Result<(), Error> {
     let actor_id: &str = v
         .get("actor")
         .ok_or("No actor found")?
         .as_str()
         .ok_or("Not a string")?;
-    set_mutual_accepted(actor_id);
+    check_domains_match(domain, actor_id)?;
+    set_mutual_accepted(actor_id)?;
     Ok(())
 }
 
@@ -263,11 +278,12 @@ fn should_accept(actor_id: &str) -> bool {
     sent_req
 }
 
-pub async fn process_follow(v: Value) -> Result<(), Error> {
+pub async fn process_follow(v: Value, domain: &str) -> Result<(), Error> {
     let actor: &str = v.get("actor").unwrap().as_str().unwrap();
     let remote_actor: Actor = get_remote_actor(actor).await?; // not strictly necessary can use db instead
+    check_domains_match(domain, &remote_actor.id)?;
     let actor_inbox = &remote_actor.inbox;
-    let sent_req = true; // should_accept(actor);
+    let sent_req = should_accept(actor);
     if sent_req {
         set_mutual_followed_back(actor)?;
         // send accept follow
@@ -509,13 +525,14 @@ fn read_file(path: &std::path::Path) -> Result<Vec<u8>, MyError> {
     Ok(contents)
 }
 
+use url::Host;
 use warp::http;
 
 pub async fn verify_ap_message(
     method: &str,
     path_and_query: &str,
     headers: BTreeMap<String, String>,
-) -> Result<(), Error> {
+) -> Result<String, Error> {
     // TODO -- case insensitivity?
     // mastodon doesnt use created filed
     let config = Config::default()
@@ -523,6 +540,8 @@ pub async fn verify_ap_message(
         .dont_use_created_field();
     let unverified = config.begin_verify(method, path_and_query, headers)?;
     let actor: Actor = get_remote_actor(unverified.key_id()).await?;
+    check_domains_match(unverified.key_id(), &actor.id)?;
+    let domain = check_domains_match(unverified.key_id(), &actor.public_key.owner)?;
     let res = unverified.verify(|signature, signing_string| {
         let public_key: &[u8] = actor.public_key.public_key_pem.as_bytes();
         let r = Rsa::public_key_from_pem(public_key).unwrap();
@@ -532,5 +551,5 @@ pub async fn verify_ap_message(
         key.verify(signing_string.as_bytes(), &hexdecode).unwrap();
         true
     });
-    Ok(())
+    Ok(domain)
 }

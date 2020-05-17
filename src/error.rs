@@ -9,6 +9,13 @@ pub enum Error {
     PoolError(r2d2::Error),
     MiscError(String), // Just a temp
     HttpSigError(http_signature_normalization::PrepareVerifyError),
+    UrlParseError(url::ParseError),
+}
+
+impl From<url::ParseError> for Error {
+    fn from(err: url::ParseError) -> Error {
+        Error::UrlParseError(err)
+    }
 }
 
 impl From<&str> for Error {

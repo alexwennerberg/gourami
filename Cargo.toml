@@ -29,6 +29,7 @@ reqwest = {version="0.10.4",features=["json", "blocking"]}
 serde = { version = "1.0.106", features = ["derive"] }
 serde_json = "1.0.52"
 tokio = { version = "0.2.18", features = ["macros", "time", "sync"] }
+url = "2.1.1"
 uuid = { version = "0.8", features = ["v4"]}
 warp = {git = "https://github.com/seanmonstar/warp.git", rev = "497505a5", features = ["tls"]}
 zxcvbn = "2.0.1"
