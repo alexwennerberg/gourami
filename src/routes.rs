@@ -42,22 +42,23 @@ pub async fn run_server() {
     let actor_json = warp::path::end()
         // In practice, the headers may not follow the spec
         // https://www.w3.org/TR/activitypub/#retrieving-objects
-        .and(
+        // TODO content type
+        // TODO get interop with mastodon working
+         .and(
             header::exact_ignore_case(
                 "accept",
                 r#"application/ld+json; profile="https://www.w3.org/ns/activitystreams""#,
-            )
-            .or(header::exact_ignore_case(
-                "accept",
-                r#"application/ld+json"#,
-            ))
-            .or(header::exact_ignore_case(
-                "accept",
-                r#"profile="https://www.w3.org/ns/activitystreams""#,
-            ))
-            .or(header::exact_ignore_case("accept", "application/json")),
         )
-        // TODO content type
+        .or(header::exact_ignore_case(
+            "accept",
+            r#"application/ld+json"#,
+        ))
+        .or(header::exact_ignore_case(
+            "accept",
+            r#"profile="https://www.w3.org/ns/activitystreams""#,
+        ))
+        .or(header::exact_ignore_case("accept", "application/json")),
+    )
         .map(
             |_| reply::json(&ap::server_actor_json()), // how do async work
         );
@@ -98,7 +99,7 @@ pub async fn run_server() {
         .and(path("notifications"))
         .map(render_notifications);
 
-    let server_info_page = session_filter().and(path("server")).map(server_info_page);
+    let server_info_page = session_filter().and(path("server_info")).map(server_info_page);
 
     // auth functions
     let register_page = path("register").and(query()).map(register_page);

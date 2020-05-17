@@ -24,21 +24,22 @@ pub struct Note {
     pub created_time: chrono::NaiveDateTime,
     pub neighborhood: bool,
     pub is_remote: bool,
-    pub remote_url: Option<String>,
     pub remote_id: Option<String>,
 }
 
+pub fn get_url(note_id: i32) -> String {
+    // TODO move domain url function
+    format!("{}/note/{}", SERVER.global_id, note_id)
+}
+
 impl Note {
-    pub fn get_url(&self) -> String {
-        // TODO move domain url function
-        format!("{}/note/{}", SERVER.global_id, self.id)
-    }
     // we make some modifications for outgoing notes
     pub fn get_content_for_outgoing(&self, username: &str) -> String {
         // remove first reply string
         // username not user id
         format!("{}:{}💬 {}", SERVER.domain, username, self.content)
     }
+
 
     pub fn relative_timestamp(&self) -> String {
         // Maybe use some fancy library here
@@ -71,7 +72,7 @@ impl Note {
 /// This is currently very aggressive -- maybe we could loosen it a bit
 /// We probably want to allow microformats and some accessibiltiy tags
 /// Dont allow a so we cant have sneaky urls -- I'll do all the url parsing on my end.
-fn remove_unnacceptable_html(input_text: &str) -> String {
+pub fn remove_unacceptable_html(input_text: &str) -> String {
     let ok_tags = hashset!["br", "p", "span"];
     let html_clean = ammonia::Builder::default()
         .tags(ok_tags)
@@ -98,7 +99,6 @@ pub struct RemoteNoteInput {
     pub in_reply_to: Option<i32>,
     pub neighborhood: bool,
     pub is_remote: bool,
-    pub remote_url: String,
     pub remote_id: String,
 }
 
@@ -112,7 +112,7 @@ pub fn get_reply(note_text: &str) -> Option<i32> {
 }
 
 pub fn get_mentions(note_text: &str) -> Vec<String> {
-    let re = Regex::new(r"\B(@)(\w+)").unwrap();
+    let re = Regex::new(r"\B(@)(\S+)").unwrap();
     re.captures_iter(note_text)
         .map(|c| String::from(&c[2]))
         .collect()
@@ -124,7 +124,7 @@ pub fn get_mentions(note_text: &str) -> Vec<String> {
 pub fn parse_note_text(text: &str) -> String {
     // There shouldn't be any html tags in the db, but
     // Let's strip it out just in case
-    let html_clean = remove_unnacceptable_html(text);
+    let html_clean = remove_unacceptable_html(text);
     if text.len() == 0 {
         return String::new();
     }
@@ -144,7 +144,7 @@ pub fn parse_note_text(text: &str) -> String {
     let notes_parsed = note_regex
         .replace_all(&urls_parsed, &replace_str as &str)
         .to_string();
-    let person_regex = Regex::new(r"\B(@)(\w+)").unwrap();
+    let person_regex = Regex::new(r"\B(@)(\S+)").unwrap();
     let replace_str = "<a href=\"/user/$2\">$0</a>";
     let people_parsed = person_regex
         .replace_all(&notes_parsed, &replace_str as &str)

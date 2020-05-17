@@ -92,6 +92,7 @@ pub struct ApNote {
 }
 
 use regex::Regex;
+use crate::db::note;
 
 impl ApNote {
     fn get_remote_user_name(&self) -> Option<String> {
@@ -101,6 +102,33 @@ impl ApNote {
             None => None,
         }
     }
+    // TODO write unit tests
+    pub fn transform_incoming_content(&self) -> Result<(String, Option<i32>), Error>{
+        let attr_re = Regex::new(r"^(.+?)(💬)").unwrap();
+        let note_re = Regex::new(r"\B(📝|>>)(\d+)").unwrap();
+        let new_content = attr_re.replace(&note::remove_unacceptable_html(&self.content), "")
+            .replace(&format!("{}:", SERVER.domain), "");
+        let mut new_content = note_re.replace(&new_content, "").into_owned();
+
+        // prepend the appropriate note if in_reply_to
+        let conn = &POOL.get()?;
+        use crate::db::schema::notes::dsl as n;
+        let re = Regex::new(r"^(.+?)(💬)").unwrap();
+        let mut reply_id: Option<i32> = None;
+        println!("{:?}", self.in_reply_to);
+        if let Some(reply) = self.in_reply_to.clone() {
+            reply_id = n::notes.select(n::id)
+                .filter(n::remote_id.eq(reply)).first(conn).ok();
+            println!("{:?}", reply_id);
+            if let Some(r) = reply_id {
+                new_content = format!("📝{} {}", r, new_content);
+            }
+        }
+        // render html and stuff
+        Ok((note::parse_note_text(&new_content), reply_id))
+    }
+
+
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -203,6 +231,7 @@ pub fn process_create_note(v: Value, domain: &str) -> Result<(), Error> {
     if !should_accept(&create_note.actor) {
         return Err(Error::MiscError("Not someone we are following".to_owned()));
     }
+    let (content, in_reply_to) = ap_note.transform_incoming_content()?;
     let remote_username = ap_note
         .get_remote_user_name()
         .unwrap_or(ap_note.attributed_to); // TODO -- prevent usernames iwth colons
@@ -222,13 +251,12 @@ pub fn process_create_note(v: Value, domain: &str) -> Result<(), Error> {
     })?;
 
     let new_remote_note = RemoteNoteInput {
-        content: ap_note.content,
-        in_reply_to: None, // TODO
+        content: content,
+        in_reply_to: in_reply_to, // TODO
         neighborhood: true,
         is_remote: true,
         user_id: new_user_id,
         remote_id: ap_note.id,
-        remote_url: ap_note.url,
     };
     insert_into(n::notes)
         .values(&new_remote_note)
@@ -387,15 +415,23 @@ fn generate_server_follow(remote_actor: &str, my_inbox_url: &str) -> Result<Valu
 }
 
 /// Generate an AP create message from a new note
-pub fn new_note_to_ap_message(note: &Note, user: &User) -> Value {
-    // we need note, user. note noteinput but note obj
-    // Do a bunch of db queries to get the info I need
-    //
+pub fn new_note_to_ap_message(note: &Note, user: &User) -> Result<Value, Error> {
     // prepend the username to the content
     // strip it out on receipt
     // use a field separator
+    let conn = &POOL.get()?;
     let content = note.get_content_for_outgoing(&user.username);
-    json!({
+    let reply = note::get_reply(&content);
+    use crate::db::schema::notes::dsl as n;
+    let in_reply_to_url = match reply {
+        Some(id) => {
+            let reply_url: Option<String> = n::notes.select(n::remote_id).filter(n::id.eq(id)).first(conn).unwrap(); // ??
+            reply_url
+        },
+        None => None
+    };
+    println!("{:?}", note);
+    let res = json!({
         "@context": "https://www.w3.org/ns/activitystreams",
         "id": generate_activity_id(),
         "type": "Create",
@@ -405,14 +441,17 @@ pub fn new_note_to_ap_message(note: &Note, user: &User) -> Value {
             "https://www.w3.org/ns/activitystreams#Public"
         ], // todo audience
         "object": {
-            "id": note.get_url(), // TODO generate
+            "id": note.remote_id,
             "type": "Note",
             "summary": "", // unused
-            "url": note.get_url(),
+            "url": note.remote_id,
             "attributedTo": SERVER.global_id,
-            "content": content
+            "content": content,
+            "inReplyTo": in_reply_to_url
         }
-    })
+    });
+    println!("{:?}", res);
+    Ok(res)
 }
 
 // /// used to send to others

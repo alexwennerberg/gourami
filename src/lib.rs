@@ -220,7 +220,7 @@ async fn handle_new_note_form(
                     .into_iter()
                     .map(|s| s.inbox_url)
                     .collect();
-                sender.send((nj, destinations)).ok();
+                sender.send((nj.unwrap(), destinations)).ok();
             }
             let red_url: http::Uri = f.redirect_url.parse().unwrap();
             Ok(redirect(red_url))
@@ -251,10 +251,13 @@ pub fn new_note(
         content: parsed_note_text,
         neighborhood: neighborhood,
     };
-    let inserted_note: Note = conn.transaction(|| {
+    let mut inserted_note: Note = conn.transaction(|| {
         insert_into(notes::notes).values(&new_note).execute(conn)?;
         notes::notes.order(notes::id.desc()).first(conn)
     })?;
+    // add note url
+    diesel::update(notes::notes.filter(notes::id.eq(inserted_note.id))).set(notes::remote_id.eq(note::get_url(inserted_note.id))).execute(conn)?;
+    inserted_note.remote_id = Some(note::get_url(inserted_note.id));
     // notify person u reply to
     if mentions.len() > 0 {
         let message = format!(
