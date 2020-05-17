@@ -136,31 +136,25 @@ pub async fn run_server() {
         .and(warp::fs::dir("./static"))
         .or(robots);
 
-    // activityPub stuff
-    // This stuff should filter based on the application headers
-    // setup authentication
-    // POST
-    // TODO -- setup proper replies
-
     // force content type to be application/ld+json; profile="https://www.w3.org/ns/activitystreams
     let post_server_inbox = path!("inbox")
-        .and(body::aggregate())
-        .and(
-            header::exact_ignore_case(
-                "content-type",
-                r#"application/ld+json; profile="https://www.w3.org/ns/activitystreams""#,
-            )
-            .or(header::exact_ignore_case(
-                "content-type",
-                r#"application/ld+json"#,
-            ))
-            .or(header::exact_ignore_case(
-                "content-type",
-                r#"profile="https://www.w3.org/ns/activitystreams""#,
-            )),
-        )
+        .and(body::aggregate()) // TODO -- figure out whats going wrong with content type here from mastodon
+        // .and(
+        //     header::exact_ignore_case(
+        //         "content-type",
+        //         r#"application/ld+json; profile="https://www.w3.org/ns/activitystreams""#,
+        //     )
+        //     .or(header::exact_ignore_case(
+        //         "content-type",
+        //         r#"application/ld+json"#,
+        //     ))
+        //     .or(header::exact_ignore_case(
+        //         "content-type",
+        //         r#"profile="https://www.w3.org/ns/activitystreams""#,
+        //     )),
+        // )
         .and(header::headers_cloned())
-        .and_then(|buf, _, headers| async move { post_inbox(buf, headers).await });
+        .and_then(|buf, headers| async move { post_inbox(buf, headers).await });
 
     let get_server_outbox = path!("outbox").map(get_outbox);
 

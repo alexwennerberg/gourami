@@ -60,7 +60,7 @@ pub struct CreateNote {
     // Maybe use AP crate
     id: String,
     object: ApNote,
-    actor: Actor,
+    actor: String, // could be obj?
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -173,9 +173,9 @@ pub fn server_actor_json() -> Actor {
 
 use url::Url;
 
-pub fn check_domains_match(a: &str, b: &str) -> Result<String, Error> {
-    if Url::parse(a)?.domain() == Url::parse(b)?.domain() {
-        return Ok(Url::parse(a)?.domain().ok_or("No domain found")?.to_owned());
+pub fn check_domains_match(a: &str, b: &str) -> Result<(), Error> {
+    if Some(a) == Url::parse(b)?.domain() {
+        return Ok(());
     }
     return Err(Error::MiscError("Domain Mismatch".to_owned()));
 }
@@ -186,9 +186,10 @@ pub fn process_create_note(v: Value, domain: &str) -> Result<(), Error> {
     //
     let conn = &POOL.get()?;
     let create_note: CreateNote = serde_json::from_value(v)?;
+    // TODO cache this
 
     // do some domain verification
-    check_domains_match(domain, &create_note.actor.id)?;
+    check_domains_match(domain, &create_note.actor)?;
     check_domains_match(domain, &create_note.id)?;
     check_domains_match(domain, &create_note.object.id)?;
     check_domains_match(domain, &create_note.object.attributed_to)?;
@@ -199,7 +200,7 @@ pub fn process_create_note(v: Value, domain: &str) -> Result<(), Error> {
     //  if user not in db, insert
     //
     let ap_note = create_note.object;
-    if !should_accept(&ap_note.id) {
+    if !should_accept(&create_note.actor) {
         return Err(Error::MiscError("Not someone we are following".to_owned()));
     }
     let remote_username = ap_note
@@ -380,7 +381,8 @@ fn generate_server_follow(remote_actor: &str, my_inbox_url: &str) -> Result<Valu
             actor_id: remote_actor.to_owned(),
             inbox_url: my_inbox_url.to_owned(),
         })
-        .execute(conn)?;
+        .execute(conn)
+        .ok(); // TODO better error handling
     Ok(res)
 }
 
@@ -539,9 +541,11 @@ pub async fn verify_ap_message(
         .set_expiration(Duration::seconds(3600))
         .dont_use_created_field();
     let unverified = config.begin_verify(method, path_and_query, headers)?;
-    let actor: Actor = get_remote_actor(unverified.key_id()).await?;
-    check_domains_match(unverified.key_id(), &actor.id)?;
-    let domain = check_domains_match(unverified.key_id(), &actor.public_key.owner)?;
+    let key_id = unverified.key_id();
+    let actor: Actor = get_remote_actor(key_id).await?;
+    let domain = Url::parse(key_id)?.domain().ok_or("No domain")?.to_owned();
+    check_domains_match(&domain, &actor.id)?;
+    check_domains_match(&domain, &actor.public_key.owner)?;
     let res = unverified.verify(|signature, signing_string| {
         let public_key: &[u8] = actor.public_key.public_key_pem.as_bytes();
         let r = Rsa::public_key_from_pem(public_key).unwrap();
