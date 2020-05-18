@@ -57,6 +57,7 @@ Many projects inspired my work here, and I want to mention them
 * https://sourcehut.org/    
 * https://100r.co/site/mission.html
 * https://solar.lowtechmagazine.com/2020/01/how-sustainable-is-a-solar-powered-website.html
+* https://internethealthreport.org/2018/the-internet-uses-more-electricity-than/
 * https://www.nycmesh.net/
 * [Honk](https://flak.tedunangst.com/post/ActivityPub-as-it-has-been-understood) and Ted Unangst's work with ActivityPub
 * https://github.com/rustodon/rustodon
