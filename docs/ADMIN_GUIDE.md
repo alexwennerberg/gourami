@@ -27,9 +27,6 @@ Gourami doesn't implement unfollows yet, so you'll have to directly modify the d
 
 Gourami is built for small deployments -- I have not tested it or designed it for larger implementations. This gives users a lot more flexibility, but requires more trust on your end. For example, a user may be easily able to spam the timeline, spam everyone's notifications, DOS the server, etc, so as an admin you should only allow people on your instance that you trust. You will also find that the quality of the shared timelines will begin to degrade after too many users. If you're still interested in attempting a larger Gourami deployment, I won't stop you, but beware that you're in uncharted territory.
 
-I'm not big into formal rules or codes of context, but if you feel like that's important for your server, you may want to put it in your server message.
-
-
 ## Configuration
 
 // TODO

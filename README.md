@@ -1,4 +1,4 @@
-# 🐟gourami
+#🐟gourami
 ![Build and Test](https://github.com/alexwennerberg/gourami/workflows/Build%20and%20Test/badge.svg)
 
 An intentionally small, ultra-lightweight ActivityPub social network. See a live public demo at https://dev.gourami.social/ and [reach out to me](mailto:alex@alexwennerberg.com) if you want an invite so you can try it out.
@@ -46,8 +46,6 @@ To create a user account:
 * Run the sql command `insert into registration_keys values ("123")`
 * Go to `http://localhost:3030/register?key=123`
 * Create an account and log in
-
-See the [user guide](docs/USER_GUIDE.md) for information on usage.
 
 ## Deployment
 
