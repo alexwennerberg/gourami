@@ -3,7 +3,7 @@
 
 An intentionally small, ultra-lightweight ActivityPub social network. See a live public demo at https://dev.gourami.social/ and [reach out to me](mailto:alex@alexwennerberg.com) if you want an invite so you can try it out.
 
-![image](docs/demo.pnc)
+![image](docs/demo.png)
 
 ## Philosophy and Design
 
