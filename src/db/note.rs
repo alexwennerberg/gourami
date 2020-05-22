@@ -40,7 +40,6 @@ impl Note {
         format!("{}:{}💬 {}", SERVER.domain, username, self.content)
     }
 
-
     pub fn relative_timestamp(&self) -> String {
         // Maybe use some fancy library here
         let diff = Utc::now()

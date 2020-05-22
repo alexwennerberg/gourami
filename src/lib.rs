@@ -256,7 +256,9 @@ pub fn new_note(
         notes::notes.order(notes::id.desc()).first(conn)
     })?;
     // add note url
-    diesel::update(notes::notes.filter(notes::id.eq(inserted_note.id))).set(notes::remote_id.eq(note::get_url(inserted_note.id))).execute(conn)?;
+    diesel::update(notes::notes.filter(notes::id.eq(inserted_note.id)))
+        .set(notes::remote_id.eq(note::get_url(inserted_note.id)))
+        .execute(conn)?;
     inserted_note.remote_id = Some(note::get_url(inserted_note.id));
     // notify person u reply to
     if mentions.len() > 0 {

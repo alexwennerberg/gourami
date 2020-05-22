@@ -91,8 +91,8 @@ pub struct ApNote {
     in_reply_to: Option<String>,
 }
 
-use regex::Regex;
 use crate::db::note;
+use regex::Regex;
 
 impl ApNote {
     fn get_remote_user_name(&self) -> Option<String> {
@@ -103,10 +103,11 @@ impl ApNote {
         }
     }
     // TODO write unit tests
-    pub fn transform_incoming_content(&self) -> Result<(String, Option<i32>), Error>{
+    pub fn transform_incoming_content(&self) -> Result<(String, Option<i32>), Error> {
         let attr_re = Regex::new(r"^(.+?)(💬)").unwrap();
         let note_re = Regex::new(r"\B(📝|>>)(\d+)").unwrap();
-        let new_content = attr_re.replace(&note::remove_unacceptable_html(&self.content), "")
+        let new_content = attr_re
+            .replace(&note::remove_unacceptable_html(&self.content), "")
             .replace(&format!("{}:", SERVER.domain), "");
         let mut new_content = note_re.replace(&new_content, "").into_owned();
 
@@ -117,8 +118,11 @@ impl ApNote {
         let mut reply_id: Option<i32> = None;
         println!("{:?}", self.in_reply_to);
         if let Some(reply) = self.in_reply_to.clone() {
-            reply_id = n::notes.select(n::id)
-                .filter(n::remote_id.eq(reply)).first(conn).ok();
+            reply_id = n::notes
+                .select(n::id)
+                .filter(n::remote_id.eq(reply))
+                .first(conn)
+                .ok();
             println!("{:?}", reply_id);
             if let Some(r) = reply_id {
                 new_content = format!("📝{} {}", r, new_content);
@@ -127,8 +131,6 @@ impl ApNote {
         // render html and stuff
         Ok((note::parse_note_text(&new_content), reply_id))
     }
-
-
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -425,10 +427,14 @@ pub fn new_note_to_ap_message(note: &Note, user: &User) -> Result<Value, Error> 
     use crate::db::schema::notes::dsl as n;
     let in_reply_to_url = match reply {
         Some(id) => {
-            let reply_url: Option<String> = n::notes.select(n::remote_id).filter(n::id.eq(id)).first(conn).unwrap(); // ??
+            let reply_url: Option<String> = n::notes
+                .select(n::remote_id)
+                .filter(n::id.eq(id))
+                .first(conn)
+                .unwrap(); // ??
             reply_url
-        },
-        None => None
+        }
+        None => None,
     };
     println!("{:?}", note);
     let res = json!({
