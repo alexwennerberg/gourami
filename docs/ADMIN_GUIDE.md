@@ -7,7 +7,7 @@ If you want to administer a Gourami server, you'll need a few technical skills:
 
 ## Deployment
 
-Once you've built Gourami, you'll have a standalone binary that runs the server. Nothing else is needed, aside from Sqlite, OpenSSL and a TLS cert! I put together an ansible playbook that you may find helpful in `ansible/`. If you are having trouble deploying Gourami, feel free to send me an email or open a GitHub issue.
+Once you've built Gourami, you'll have a standalone binary that runs the server. Nothing else is needed, aside from Sqlite, OpenSSL and a TLS cert! I put together an ansible playbook that you may find helpful in `ansible/`. You'll need to modify the environment variables (an example is in sample_env) for your production deployment. If you are having trouble deploying Gourami, feel free to send me an email or open a GitHub issue. I plan on writing more detailed instructions for deploying a production server at some point. 
 
 It should be relatively straightforward to deploy this on a Raspberry Pi too -- I plan on doing this at some point, and I'll put together a guide for it.
 
@@ -27,10 +27,6 @@ Gourami doesn't implement unfollows yet, so you'll have to directly modify the d
 
 Gourami is built for small deployments -- I have not tested it or designed it for larger implementations. This gives users a lot more flexibility, but requires more trust on your end. For example, a user may be easily able to spam the timeline, spam everyone's notifications, DOS the server, etc, so as an admin you should only allow people on your instance that you trust. You will also find that the quality of the shared timelines will begin to degrade after too many users. If you're still interested in attempting a larger Gourami deployment, I won't stop you, but beware that you're in uncharted territory.
 
-## Configuration
-
-// TODO
-
 ## Customizing Gourami
 
 You may want to customize parts of Gourami, such as the CSS format or server message. Right now, html templates are compiled into the binary. In retrospect, it might have been a better idea to use a templating engine that is rendered at runtime. If you want to customize the html, you'll have to edit the file and recompile. I may move towards a different templating library at some point.
@@ -43,15 +39,4 @@ The server has a server actor. This is an ActivityPub actor of type "Organizatio
 
 Currently, deletes are not supported. 
 
-The only audience supported for ingoing and outgoing messages is [public]. This both simplifies the AP implementation and, in my view, more accurately specifies how ActivityPub works in practice -- once I send my message to a remote server, there isn't really any guarantee as to where it will go.
-
-Most of these decisions were informed by simplicity
-
-## Federation with non-gourami AP services
-
-ActivityPub varies across servers. Some functionality may not work with other AP servers. Examples of things that may break include:
-
-* HTML tags that aren't supported getting sanitized
-* A different key algorithm being used for HTML signatures
-* Custom service-specific activitypub features
-* AP features supported by their server but not Gourami (Gourami is extremely limited in its interpretation of ActivityPub)
+The only audience currently supported for ingoing and outgoing messages is Public.

@@ -6,6 +6,7 @@ export SSL_ENABLED="0"
 export PUBLIC="0"
 
 # Used for http signature verification. Not necessary if you aren't federating your server.
+# If you are using federation, you'll have to generate these keys.
 export SIGNATURE_PRIVKEY="local/private.pk8"
 export SIGNATURE_PUBKEY="local/public.der"
 export SIGNATURE_PUBKEY_PEM="local/public.pem"
