@@ -8,7 +8,7 @@ async fn main() {
     dotenv::dotenv().ok();
     env_logger::init();
     let matches = App::new("Gourami")
-        .version("0.1.0")
+        .version("0.1.1")
         .author("Alex Wennerberg <alex@alexwennerberg.com>")
         .about("Gourami server and admin tools")
         .subcommand(App::new("run").about("Run server"))
