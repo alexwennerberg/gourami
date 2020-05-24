@@ -38,7 +38,7 @@ Run `cargo install --path .`
 
 Configuration is done via [dotenv](https://github.com/dotenv-rs/dotenv). For development and testing, the `sample_env` file is good to get started -- copy it to `.env` in the same directory that you're running gourami.
 
-Setup the database with diesel cli -- `cargo install diesel_cli` and  `diesel setup`, or just run all of the `up.sql` scripts in the `migrations/` folder.
+Setup the database with diesel cli -- `cargo install diesel_cli --no-default-features --features "sqlite"` and  `diesel setup`, or just run all of the `up.sql` scripts in the `migrations/` folder.
 
 Run the local server with `gourami_social run`
 
