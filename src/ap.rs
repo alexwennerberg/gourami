@@ -42,7 +42,7 @@ lazy_static! {
         domain: env::var("GOURAMI_DOMAIN").unwrap(),
         key_id: format!("{}#key", domain_url()),
         inbox: format!("{}/inbox", domain_url()),
-        public_key: std::fs::read_to_string(env::var("SIGNATURE_PUBKEY_PEM").unwrap()).unwrap()
+        public_key: std::fs::read_to_string(env::var("SIGNATURE_PUBKEY_PEM").unwrap()).unwrap_or("".to_owned()),
     };
 }
 
