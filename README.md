@@ -29,6 +29,7 @@ Make sure you have the following dependencies:
 * sqlite3
 * libsqlite3-dev
 * openssl
+* libssl-dev
 
 [Install Rustup](https://doc.rust-lang.org/cargo/getting-started/installation.html) or Cargo.
 
