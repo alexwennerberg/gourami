@@ -69,13 +69,6 @@ struct UserEditTemplate<'a> {
     user: User,
 }
 
-#[derive(Template)]
-#[template(path = "neighborhood.html")]
-struct NeighborhoodTemplate<'a> {
-    global: Global<'a>,
-    notes: Vec<UserNote>,
-} // TODO reconsider structure
-
 // TODO split into separate templates. not sure how
 #[derive(Template)]
 #[template(path = "timeline.html")]
