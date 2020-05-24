@@ -1,12 +1,20 @@
 use clap::{App, Arg, SubCommand};
 use dotenv;
 use gourami_social::ap;
+use gourami_social::POOL;
 use gourami_social::routes::run_server;
+
+#[macro_use]
+extern crate diesel_migrations;
+
+embed_migrations!("./migrations");
 
 #[tokio::main]
 async fn main() {
     dotenv::dotenv().ok();
     env_logger::init();
+    let conn = &POOL.get().unwrap();
+    embedded_migrations::run(conn).unwrap();
     let matches = App::new("Gourami")
         .version("0.1.1")
         .author("Alex Wennerberg <alex@alexwennerberg.com>")

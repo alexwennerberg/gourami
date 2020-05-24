@@ -13,6 +13,7 @@ bcrypt = "0.7.0"
 chrono = {version="0.4.11", features=["serde"]}
 clap = "2.33.0"
 diesel = { version = "1.4.4", features = ["sqlite", "chrono", "r2d2"] }
+diesel_migrations = "1.4.0"
 dotenv = "0.15.0"
 env_logger = "0.7.1"
 http-signature-normalization = "0.5.1"
