@@ -21,7 +21,7 @@ use warp::redirect::redirect;
 use warp::{Filter, Rejection, Reply};
 
 use askama::Template;
-use db::conn::POOL;
+pub use db::conn::POOL;
 use db::note;
 use db::note::{Note, NoteInput};
 use db::notification::{NewNotification, NewNotificationViewer, Notification, NotificationViewer};

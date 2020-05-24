@@ -21,10 +21,6 @@
       copy:
         src: ../static
         dest: /home/gourami
-    - name: copy migrations over
-      copy:
-        src: ../migrations
-        dest: /home/gourami
     - name: copy env over
       copy:
         src: prod_dotenv # distinguish dev/prod
