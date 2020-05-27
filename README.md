@@ -2,7 +2,13 @@
 
 ![Build and Test](https://github.com/alexwennerberg/gourami/workflows/Build%20and%20Test/badge.svg)
 
-An intentionally small, community-focused ultra-lightweight ActivityPub social network. See the flagship server at https://dev.gourami.social/ and [reach out to me](mailto:alex@alexwennerberg.com) if you want an invite.
+An intentionally small, community-focused ultra-lightweight ActivityPub social network. See the flagship server at https://dev.gourami.social/ and [reach out to me](mailto:alex@alexwennerberg.com) if you want an invite or use one of these free invites:
+
+* https://dev.gourami.social/register?key=36418177
+* https://dev.gourami.social/register?key=79477122
+* https://dev.gourami.social/register?key=43020436
+* https://dev.gourami.social/register?key=51973164
+
 
 ![image](docs/demo.png)
 
