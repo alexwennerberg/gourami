@@ -4,7 +4,8 @@
 
 An intentionally small, community-focused ultra-lightweight ActivityPub social network. See the flagship server at https://dev.gourami.social/ and [reach out to me](mailto:alex@alexwennerberg.com) if you want an invite or use one of these free invites:
 
-* https://dev.gourami.social/register?key=79477122
+* https://dev.gourami.social/register?key=72586361
+* https://dev.gourami.social/register?key=60686228
 * https://dev.gourami.social/register?key=43020436
 * https://dev.gourami.social/register?key=51973164
 
