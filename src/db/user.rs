@@ -62,17 +62,10 @@ impl User {
         )
         // remote url?
     }
-    pub fn authenticate(conn: &SqliteConnection, user: &str, pass: &str) -> Option<Self> {
-        use crate::db::schema::users::dsl::*;
+    pub fn authenticate(conn: &SqliteConnection, username: &str, pass: &str) -> Option<Self> {
         // TODO -- allow email login as well
-        debug!("Authenticating user {}", user);
-        let user = match users.filter(username.eq(user)).first::<Self>(conn) {
-            Ok(user) => user,
-            Err(e) => {
-                error!("Failed to load hash for {:?}: {:?}", user, e);
-                return None;
-            }
-        };
+        debug!("Authenticating user {}", username);
+        let user = Self::with_username(conn, username)?;
 
         let u_pass = match &user.password {
             Some(p) => p,
@@ -85,6 +78,17 @@ impl User {
             Err(e) => {
                 error!("Verify failed for {:?}: {:?}", user, e);
                 None
+            }
+        }
+    }
+
+    pub fn with_username(conn: &SqliteConnection, user_name: &str) -> Option<Self> {
+        use crate::db::schema::users::dsl::*;
+        match users.filter(username.eq(user_name)).first::<Self>(conn) {
+            Ok(user) => Some(user),
+            Err(e) => {
+                error!("Failed to load hash for {:?}: {:?}", username, e);
+                return None;
             }
         }
     }
