@@ -9,6 +9,7 @@ pub enum Error {
     PoolError(r2d2::Error),
     MiscError(String), // Just a temp
     HttpSigError(http_signature_normalization::PrepareVerifyError),
+    RssError(rss::Error),
     UrlParseError(url::ParseError),
 }
 
@@ -50,5 +51,11 @@ impl From<serde_json::Error> for Error {
 impl From<http_signature_normalization::PrepareVerifyError> for Error {
     fn from(err: http_signature_normalization::PrepareVerifyError) -> Error {
         Error::HttpSigError(err)
+    }
+}
+
+impl From<rss::Error> for Error {
+    fn from(err: rss::Error) -> Error {
+        Error::RssError(err)
     }
 }
