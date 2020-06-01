@@ -5,6 +5,8 @@ use diesel::sqlite::SqliteConnection;
 use serde::Deserialize;
 use std::env;
 
+use crate::ap::SERVER;
+
 #[derive(Debug, Clone, Default, Queryable, Deserialize)]
 pub struct RegistrationKey {
     value: String,
@@ -57,7 +59,7 @@ impl User {
     pub fn get_url(&self) -> String {
         format!(
             "{}/user/{}",
-            env::var("GOURAMI_DOMAIN").unwrap(),
+            SERVER.global_id,
             self.username
         )
         // remote url?
