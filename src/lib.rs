@@ -9,6 +9,8 @@ extern crate log;
 #[macro_use]
 extern crate lazy_static;
 
+use std::io;
+
 use serde_json::Value;
 use std::collections::BTreeMap;
 use std::convert::Infallible;
@@ -29,6 +31,7 @@ use db::server_mutuals::ServerMutual;
 use db::user::{NewUser, RegistrationKey, User, Username};
 use diesel::insert_into;
 use diesel::prelude::*;
+use error::Error;
 use hyper;
 use serde::Deserialize;
 use session::Session;
@@ -37,6 +40,7 @@ pub mod ap;
 mod db;
 pub mod error;
 pub mod routes;
+mod rss;
 mod session;
 
 #[derive(Template)]
@@ -169,6 +173,7 @@ pub fn render_template<T: askama::Template>(t: &T) -> http::Response<hyper::body
     match t.render() {
         Ok(body) => http::Response::builder()
             .status(http::StatusCode::OK)
+            .header("Content-Type", "text/html")
             // TODO add headers etc
             .body(body.into()),
         Err(_) => http::Response::builder()
@@ -680,6 +685,64 @@ fn user_page(
     }
 }
 
+fn user_feed(
+    auth_user: Option<User>,
+    user_name: String,
+    params: GetPostsParams,
+    path: FullPath,
+) -> impl Reply {
+    let conn = &POOL.get().unwrap();
+    let header = Global::create(auth_user, path.as_str()); // maybe if i'm clever i can abstract this away
+    let user = match User::with_username(conn, &user_name) {
+        Some(u) => u,
+        None => {
+            return render_template(&ErrorTemplate {
+                global: header,
+                error_message: "User not found",
+                ..Default::default()
+            })
+        }
+    };
+
+    match generate_user_rss_feed(&user, params, &header) {
+        Ok(body) => http::Response::builder()
+            .status(http::StatusCode::OK)
+            .header("Content-Type", "application/rss+xml")
+            .body(body.into())
+            .unwrap(),
+        Err(err) => {
+            error!("Error generating RSS feed: {:?}", err);
+            render_template(&ErrorTemplate {
+                global: header,
+                error_message: "Error generating RSS feed",
+                ..Default::default()
+            })
+        }
+    }
+}
+
+fn generate_user_rss_feed(
+    user: &User,
+    params: GetPostsParams,
+    header: &Global,
+) -> Result<Vec<u8>, Error> {
+    let params = GetPostsParams {
+        page: 1,
+        user_id: Some(user.id),
+        ..params
+    };
+    let channel = rss::build_feed(
+        format!("{} - {}", user.username, header.title),
+        user.bio.clone(),
+        user.get_url(),
+        &get_notes(params, None)?,
+    )
+    .map_err(Error::MiscError)?;
+    let mut body = io::Cursor::new(Vec::new());
+    channel.pretty_write_to(&mut body, b' ', 2)?;
+    Ok(body.into_inner())
+}
+
 fn render_user_edit_page(user: Option<User>, user_name: String) -> impl Reply {
     let u = user.clone().unwrap();
     let global = Global::create(user, "/edit");
@@ -762,7 +825,8 @@ fn edit_user(user: Option<User>, user_name: String, f: EditForm) -> impl Reply {
     redirect(red)
 }
 
-async fn handle_rejection(_: Rejection) -> Result<impl Reply, Infallible> {
+async fn handle_rejection(rejection: Rejection) -> Result<impl Reply, Infallible> {
+    debug!("Rejection {:?}", rejection);
     Ok(render_template(&ErrorTemplate {
         global: Global::create(None, "error"),
         error_message:

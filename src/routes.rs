@@ -81,6 +81,12 @@ pub async fn run_server() {
         .and(path::full())
         .map(user_page);
 
+    let user_feed = session_filter()
+        .and(path!("user" / String / "feed.rss"))
+        .and(query())
+        .and(path::full())
+        .map(user_feed);
+
     let user_edit_page = private_session_filter()
         .and(path!("user" / String / "edit"))
         .map(render_user_edit_page);
@@ -171,6 +177,7 @@ pub async fn run_server() {
     let html_renders = home
         .or(login_page)
         .or(register_page)
+        .or(user_feed)
         .or(user_page)
         .or(note_page)
         .or(server_info_page)
