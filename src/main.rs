@@ -16,7 +16,7 @@ async fn main() {
     let conn = &POOL.get().unwrap();
     embedded_migrations::run(conn).unwrap();
     let matches = App::new("Gourami")
-        .version("0.1.2")
+        .version("0.1.3")
         .author("Alex Wennerberg <alex@alexwennerberg.com>")
         .about("Gourami server and admin tools")
         .subcommand(App::new("run").about("Run server"))
