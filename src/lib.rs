@@ -29,8 +29,10 @@ use db::user::{NewUser, RegistrationKey, User, Username};
 use diesel::insert_into;
 use diesel::prelude::*;
 use hyper;
-use serde::Deserialize;
+use serde::{Serialize, Deserialize};
 use session::Session;
+
+use serde_urlencoded;
 
 pub mod ap;
 mod db;
@@ -364,7 +366,7 @@ fn do_logout(cook: String) -> impl Reply {
     redirect(warp::http::Uri::from_static("/"))
 }
 
-#[derive(Deserialize)]
+#[derive(Serialize, Deserialize)]
 struct GetPostsParams {
     #[serde(default = "default_page")]
     page: i64,
@@ -476,7 +478,13 @@ fn render_timeline(
 ) -> impl Reply {
     // no session -- anonymous
     // pulls a bunch of data i dont really need
-    let mut header = Global::create(auth_user, url_path.as_str());
+    let url_with_params = &format!("{}?{}", url_path.as_str(), serde_urlencoded::to_string(params).unwrap());
+    let mut header = Global::create(auth_user, url_with_params);
+    header.page_title="";
+    // wonky
+    if params.neighborhood == Some(true) {
+        header.page_title="neighborhood";
+}
     header.page_num = params.page;
     // TODO -- ignore neighborhood replies
     match notes {

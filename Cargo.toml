@@ -29,6 +29,7 @@ ring = "0.16.13"
 reqwest = {version="0.10.4",features=["json", "blocking"]}
 serde = { version = "1.0.106", features = ["derive"] }
 serde_json = "1.0.52"
+serde_urlencoded = "0.6.1"
 tokio = { version = "0.2.18", features = ["macros", "time", "sync"] }
 url = "2.1.1"
 uuid = { version = "0.8", features = ["v4"]}
