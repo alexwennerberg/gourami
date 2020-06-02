@@ -29,7 +29,7 @@ use db::user::{NewUser, RegistrationKey, User, Username};
 use diesel::insert_into;
 use diesel::prelude::*;
 use hyper;
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 use session::Session;
 
 use serde_urlencoded;
@@ -379,7 +379,8 @@ fn default_page() -> i64 {
     1
 }
 
-impl Default for GetPostsParams { // is this used?
+impl Default for GetPostsParams {
+    // is this used?
     fn default() -> Self {
         GetPostsParams {
             page: 1,
@@ -434,9 +435,7 @@ fn get_local_users() -> Result<Vec<User>, diesel::result::Error> {
 }
 
 /// We have to do a join here
-fn get_notes(
-    params: &GetPostsParams,
-) -> Result<Vec<UserNote>, diesel::result::Error> {
+fn get_notes(params: &GetPostsParams) -> Result<Vec<UserNote>, diesel::result::Error> {
     use db::schema::notes::dsl as n;
     use db::schema::users::dsl as u;
     // TODO -- add whether this is complete so i can page properly
@@ -474,17 +473,21 @@ fn render_timeline(
     auth_user: Option<User>,
     params: &GetPostsParams,
     url_path: FullPath,
-    notes: Result<Vec<UserNote>, diesel::result::Error> 
+    notes: Result<Vec<UserNote>, diesel::result::Error>,
 ) -> impl Reply {
     // no session -- anonymous
     // pulls a bunch of data i dont really need
-    let url_with_params = &format!("{}?{}", url_path.as_str(), serde_urlencoded::to_string(params).unwrap());
+    let url_with_params = &format!(
+        "{}?{}",
+        url_path.as_str(),
+        serde_urlencoded::to_string(params).unwrap()
+    );
     let mut header = Global::create(auth_user, url_with_params);
-    header.page_title="";
+    header.page_title = "";
     // wonky
     if params.neighborhood == Some(true) {
-        header.page_title="neighborhood";
-}
+        header.page_title = "neighborhood";
+    }
     header.page_num = params.page;
     // TODO -- ignore neighborhood replies
     match notes {
