@@ -1,3 +1,2 @@
 [dev]
-# define the username and hostname that you use for ssh connection, and specify the domain
-domain=mydomain.su
+google.com inventory_file=google_secrets

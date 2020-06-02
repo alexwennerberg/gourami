@@ -23,7 +23,7 @@
         dest: /home/gourami
     - name: copy env over
       copy:
-        src: prod_dotenv # distinguish dev/prod
+        src: "{{inventory_file}}"
         dest: /home/gourami/.env
     - name: copy service over
       copy:
