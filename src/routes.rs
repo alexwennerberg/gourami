@@ -67,13 +67,7 @@ pub async fn run_server() {
         .and(session_filter())
         .and(query())
         .and(path::full())
-        .map(render_timeline);
-
-    let neighborhood = warp::path("neighborhood")
-        .and(session_filter())
-        .and(query())
-        .and(path::full())
-        .map(render_neighborhood);
+        .map(|a, p, u| render_timeline(a, &p, u, get_notes(&p)));
 
     let user_page = session_filter()
         .and(path!("user" / String))
@@ -94,10 +88,6 @@ pub async fn run_server() {
         .and(path!("note" / i32))
         .and(path::full())
         .map(note_page);
-
-    let notification_page = session_filter()
-        .and(path("notifications"))
-        .map(render_notifications);
 
     let server_info_page = session_filter()
         .and(path("server_info"))
@@ -174,9 +164,7 @@ pub async fn run_server() {
         .or(user_page)
         .or(note_page)
         .or(server_info_page)
-        .or(notification_page)
-        .or(user_edit_page)
-        .or(neighborhood);
+        .or(user_edit_page);
     let forms = do_register
         .or(do_login)
         .or(do_logout)

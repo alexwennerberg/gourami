@@ -23,9 +23,9 @@
       <div class="title">🐟{{global.title}}/<wbr>{{global.page_title}}</div> 
      </div>
     <div class="navlinks">
-      <a href="/">local</a> <a href="/neighborhood">neighborhood</a> <a
-        href="/server_info">server</a>{% if global.logged_in %} 
-    <a href="/notifications">n({{global.unread_notifications}})</a> <a href="/user/{{global.me.username}}">@{{global.me.username}}</a>{% else %} <a href="login">login</a>{% endif %}
+      <a href="/">local</a> <a href="/?neighborhood=true">neighborhood</a> {% if global.logged_in %} 
+      <a href="/?search_string={{global.me.username}}&all=true">mentions</a> {% endif %}
+      <a href="/server_info">server</a> {% if global.logged_in %} <a href="/user/{{global.me.username}}">@{{global.me.username}}</a>{% else %} <a href="login">login</a>{% endif %}
     </div>
     </div>
     <div class="padded main-content">

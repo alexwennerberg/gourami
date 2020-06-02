@@ -24,7 +24,6 @@ use askama::Template;
 pub use db::conn::POOL;
 use db::note;
 use db::note::{Note, NoteInput};
-use db::notification::{NewNotification, NewNotificationViewer, Notification, NotificationViewer};
 use db::server_mutuals::ServerMutual;
 use db::user::{NewUser, RegistrationKey, User, Username};
 use diesel::insert_into;
@@ -78,13 +77,6 @@ struct TimelineTemplate<'a> {
 }
 
 #[derive(Template)]
-#[template(path = "notifications.html")]
-struct NotificationTemplate<'a> {
-    notifs: Vec<RenderedNotif>, // required for redirects.
-    global: Global<'a>,
-}
-
-#[derive(Template)]
 #[template(path = "login.html")]
 struct LoginTemplate<'a> {
     login_failed: bool, // required for redirects.
@@ -118,28 +110,19 @@ struct Global<'a> {
     me: User,
     has_more: bool,
     logged_in: bool,
-    unread_notifications: i64, // db query on every page
 }
 
 impl<'a> Global<'a> {
     fn create(user: Option<User>, page: &'a str) -> Self {
-        use db::schema::notification_viewers::dsl::*;
         use diesel::dsl::count;
         match user {
             Some(u) => {
                 let conn = POOL.get().unwrap();
-                let unread: i64 = notification_viewers
-                    .select(count(user_id))
-                    .filter(user_id.eq(u.id))
-                    .filter(viewed.eq(false))
-                    .first(&conn)
-                    .unwrap();
                 Self {
                     me: u,
                     page: page,             // remove leading slash
                     page_title: &page[1..], // remove leading slash
                     logged_in: true,
-                    unread_notifications: unread,
                     ..Default::default()
                 }
             }
@@ -160,7 +143,6 @@ impl<'a> Default for Global<'a> {
             page_title: "",
             logged_in: false,
             has_more: false,
-            unread_notifications: 0,
         }
     }
 }
@@ -228,8 +210,6 @@ pub fn new_note(
     neighborhood: bool,
 ) -> Result<Note, Box<dyn std::error::Error>> {
     use db::schema::notes::dsl as notes;
-    use db::schema::notification_viewers::dsl as nv;
-    use db::schema::notifications::dsl as notifs;
     use db::schema::users::dsl as u;
     // create activitypub activity object
     // TODO -- micropub?
@@ -253,50 +233,6 @@ pub fn new_note(
         .set(notes::remote_id.eq(note::get_url(inserted_note.id)))
         .execute(conn)?;
     inserted_note.remote_id = Some(note::get_url(inserted_note.id));
-    // notify person u reply to
-    if mentions.len() > 0 {
-        let message = format!(
-            "@{} mentioned you in a note 📝{}",
-            auth_user.username, inserted_note.id
-        );
-        let new_notification = NewNotification {
-            // reusing the same parser for now. rename maybe
-            notification_html: note::parse_note_text(&message),
-            server_message: false,
-        };
-        insert_into(notifs::notifications)
-            .values(new_notification)
-            .execute(conn)?;
-        for mention in mentions {
-            // skip if you reply to yourself
-            if auth_user.username == mention {
-                continue;
-            }
-            // create reply notification
-            // I thinks this may work but worry about multithreading
-            let user_id = u::users
-                .select(u::id)
-                .filter(u::username.eq(mention))
-                .first(conn)
-                .ok(); // TODO
-            if let Some(u_id) = user_id {
-                let notif_id = notifs::notifications
-                    .order(notifs::id.desc())
-                    .select(notifs::id)
-                    .first(conn)
-                    .unwrap();
-                let new_nv = NewNotificationViewer {
-                    notification_id: notif_id,
-                    user_id: u_id,
-                    viewed: false,
-                };
-                insert_into(nv::notification_viewers)
-                    .values(new_nv)
-                    .execute(conn)
-                    .ok(); // work with conn failures
-            }
-        }
-    }
     Ok(inserted_note)
 }
 
@@ -432,17 +368,23 @@ fn do_logout(cook: String) -> impl Reply {
 struct GetPostsParams {
     #[serde(default = "default_page")]
     page: i64,
+    neighborhood: Option<bool>,
+    all: Option<bool>,
+    search_string: Option<String>,
     user_id: Option<i32>,
 }
 fn default_page() -> i64 {
     1
 }
 
-impl Default for GetPostsParams {
+impl Default for GetPostsParams { // is this used?
     fn default() -> Self {
         GetPostsParams {
             page: 1,
             user_id: None,
+            neighborhood: Some(false),
+            all: Some(false),
+            search_string: None,
         }
     }
 }
@@ -491,8 +433,7 @@ fn get_local_users() -> Result<Vec<User>, diesel::result::Error> {
 
 /// We have to do a join here
 fn get_notes(
-    params: GetPostsParams,
-    neighborhood: Option<bool>,
+    params: &GetPostsParams,
 ) -> Result<Vec<UserNote>, diesel::result::Error> {
     use db::schema::notes::dsl as n;
     use db::schema::users::dsl as u;
@@ -506,11 +447,16 @@ fn get_notes(
     if let Some(u_id) = params.user_id {
         query = query.filter(u::id.eq(u_id));
     }
-    match neighborhood {
-        Some(true) => query = query.filter(n::neighborhood.eq(true)),
-        Some(false) => query = query.filter(n::is_remote.eq(false)),
-        // OR is neighborhood and reply is to a neighborhood tweet
-        None => (),
+    if let Some(search) = params.search_string.clone() {
+        query = query.filter(n::content.like(format!("%{}%", search)));
+    }
+    // this is wonky
+    if !params.all.is_some() {
+        match params.neighborhood {
+            Some(true) => query = query.filter(n::neighborhood.eq(true)),
+            _ => query = query.filter(n::is_remote.eq(false)),
+            // maybe somethign with replies
+        }
     }
     let results = query.load::<(Note, User)>(&POOL.get().unwrap()).unwrap(); // TODO get rid of unwrap
     Ok(results
@@ -522,56 +468,17 @@ fn get_notes(
         .collect())
 }
 
-struct RenderedNotif {
-    notif: Notification,
-    viewed: bool,
-}
-fn render_notifications(auth_user: Option<User>) -> impl Reply {
-    use db::schema::notification_viewers::dsl as nv;
-    use db::schema::notifications::dsl as n;
-    let global = Global::create(auth_user.clone(), "/notifications");
-    let conn = &POOL.get().unwrap();
-    let my_id = auth_user.unwrap().id;
-    let notifs = n::notifications
-        .inner_join(nv::notification_viewers)
-        .order(n::id.desc())
-        .filter(nv::user_id.eq(my_id))
-        .limit(100) // NOTE -- if you have 100 unread notifications this will cause issues
-        // older notifications wont be seen
-        .load::<(Notification, NotificationViewer)>(conn)
-        .unwrap()
-        .into_iter()
-        .map(|(n, nv)| RenderedNotif {
-            notif: n,
-            viewed: nv.viewed,
-        })
-        .collect();
-    // mark notifications as read
-    diesel::update(
-        nv::notification_viewers
-            .filter(nv::user_id.eq(my_id))
-            .filter(nv::viewed.eq(false)),
-    )
-    .set(nv::viewed.eq(true))
-    .execute(conn)
-    .unwrap();
-    render_template(&NotificationTemplate {
-        global: global,
-        notifs: notifs,
-    })
-}
-
 fn render_timeline(
     auth_user: Option<User>,
-    params: GetPostsParams,
+    params: &GetPostsParams,
     url_path: FullPath,
+    notes: Result<Vec<UserNote>, diesel::result::Error> 
 ) -> impl Reply {
     // no session -- anonymous
     // pulls a bunch of data i dont really need
     let mut header = Global::create(auth_user, url_path.as_str());
     header.page_num = params.page;
     // TODO -- ignore neighborhood replies
-    let notes = get_notes(params, Some(false));
     match notes {
         Ok(n) => {
             // NOTE -- breaks when  exactly 50 notes
@@ -583,26 +490,6 @@ fn render_timeline(
                 notes: n,
             })
         }
-        _ => render_template(&ErrorTemplate {
-            global: header,
-            error_message: "Could not fetch notes",
-            ..Default::default()
-        }),
-    }
-}
-
-fn render_neighborhood(
-    auth_user: Option<User>,
-    params: GetPostsParams,
-    url_path: FullPath,
-) -> impl Reply {
-    let header = Global::create(auth_user, url_path.as_str());
-    let notes = get_notes(params, Some(true));
-    match notes {
-        Ok(n) => render_template(&TimelineTemplate {
-            global: header,
-            notes: n,
-        }),
         _ => render_template(&ErrorTemplate {
             global: header,
             error_message: "Could not fetch notes",
@@ -661,7 +548,7 @@ fn user_page(
         .ok();
     if let Some(u) = user {
         params.user_id = Some(u.id);
-        let notes = get_notes(params, None).unwrap();
+        let notes = get_notes(&params).unwrap();
         // NOTE -- breaks when  exactly 50 notes
         if notes.len() == PAGE_SIZE as usize {
             header.has_more = true;
