@@ -22,6 +22,7 @@ table! {
         id -> Integer,
         username -> Varchar,
         email -> Nullable<Varchar>,
+        website -> Varchar,
         bio -> Text,
         created_time -> Timestamp,
         password -> Nullable<Varchar>,

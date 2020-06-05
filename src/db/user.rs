@@ -46,6 +46,7 @@ pub struct User {
     pub id: i32,
     pub username: String,
     pub email: Option<String>, // TODO option
+    pub website: String, // TODO option
     pub bio: String,
     pub created_time: String,
     pub password: Option<String>,

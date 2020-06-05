@@ -27,7 +27,7 @@
       <a href="/">local</a>{% endif %} <a href="/?neighborhood=true">neighborhood</a> {% if global.logged_in %} 
       <a href="/?search_string={{global.me.username}}&all=true">mentions</a> {% endif %}
       <a href="/server_info">server</a> {% if global.logged_in %} <a
-        href="/?user_id={{global.me.id}}">@{{global.me.username}}</a>{% else %} <a href="login">login</a>{% endif %}
+        href="/?user_id={{global.me.id}}">@{{global.me.username}}</a>{% else %} <a href="/register">register</a> <a href="login">login</a>{% endif %}
     </div>
     </div>
     <div class="padded main-content">

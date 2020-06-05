@@ -571,6 +571,7 @@ pub async fn post_inbox(
 struct EditForm {
     redirect_url: String,
     bio: String,
+    website: String,
     show_email: Option<String>,
     email: String,
 }
@@ -584,6 +585,7 @@ fn edit_user(user: Option<User>, user_name: String, f: EditForm) -> impl Reply {
             .set((
                 bio.eq(&f.bio),
                 email.eq(&f.email),
+                website.eq(&f.website),
                 show_email.eq(&f.show_email.is_some()),
             ))
             .execute(conn)

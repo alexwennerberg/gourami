@@ -7,10 +7,11 @@
     {%when Some with (e) %}
       {%if user.show_email%}
       <br>
-      <b>email:</b> <a href="mailto:{{e}}">{{e}}</a>
+      <b>email:</b> <a href="mailto:{{e}}">{{e}}</a><br>
       {%endif %}
     {% when None %}
   {%endmatch%}
+  <b>website:</b> <a href="{{user.website}}">{{user.website}}</a> 
   {% if global.me.id == user.id%}
   <br>
   <a href="/user/{{user.username}}/edit">edit</a>
@@ -20,4 +21,5 @@
                                                 class="link-button">logout</button></form>
   </div>
   {% endif %}
+  <br><br>
 </div>
