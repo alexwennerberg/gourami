@@ -4,7 +4,6 @@ CREATE TABLE users (
   id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
   username VARCHAR(255),
   email VARCHAR(255),
-  website VARCHAR(255) default "",
   bio VARCHAR(1023) default "New here!",
   created_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP ,
   password VARCHAR(255),
