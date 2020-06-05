@@ -62,12 +62,31 @@ pub async fn run_server() {
             |_| reply::json(&ap::server_actor_json()), // how do async work
         );
 
-    // replace with timeline query
     let home = warp::path::end()
         .and(optional_session_filter())
         .and(query())
         .and(path::full())
         .map(|user: Option<User>, params, url| render_timeline(user.clone(), &params, url, get_notes(user.is_some(), &params)));
+
+    // a bit awkward
+    let user_alias = warp::path!("user" / String)
+        .and(optional_session_filter())
+        .and(query::<GetPostsParams>())
+        .and(path::full())
+        .map(|username: String, user: Option<User>, mut params: GetPostsParams, url| {
+            params.username = Some(username);
+            render_timeline(user.clone(), &params, url, get_notes(user.is_some(), &params))
+        });
+
+    // a bit awkward
+    let note_alias = warp::path!("note" / i32)
+        .and(optional_session_filter())
+        .and(query::<GetPostsParams>())
+        .and(path::full())
+        .map(|note: i32, user: Option<User>, mut params: GetPostsParams, url| {
+            params.note_id = Some(note);
+            render_timeline(user.clone(), &params, url, get_notes(user.is_some(), &params))
+        });
 
     let user_edit_page = session_filter()
         .and(path!("user" / String / "edit"))
@@ -148,6 +167,8 @@ pub async fn run_server() {
     // let api_filter = session::create_session_filter(&POOL.get());
     let static_json = actor_json.or(webfinger); // rename html renders
     let html_renders = home
+        .or(note_alias)
+        .or(user_alias)
         .or(login_page)
         .or(register_page)
         .or(server_info_page)
