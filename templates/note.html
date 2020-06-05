@@ -1,8 +1,0 @@
-{% extends "base.html" %}
-
-{% block content %}
-{% include "createnote.html" %}
-{% for note in note_thread %}
-  {% include "single_note.html" %}
-{% endfor %}
-{% endblock %}

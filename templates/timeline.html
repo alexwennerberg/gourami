@@ -1,6 +1,11 @@
 {% extends "base.html" %}
 
 {% block content %}
+{% match user %}
+{% when Some with (user) %}
+{% include "user_header.html" %}
+{% when None %}
+{% endmatch  %}
 {% if global.logged_in %}
 {% include "createnote.html" %}
 {% endif %}

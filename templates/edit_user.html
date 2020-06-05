@@ -15,6 +15,9 @@
   "">
 {%endmatch%}
 <br>
+<label for="bio"><b>website:</b></label>
+<input class="basic-input" type="text" id="website" name="website" value="{{user.website}}">
+<br>
 <label for="show_email"><b>show_email?</b></label>
 <input type="checkbox" id="show_email" name="show_email"
 {% if user.show_email %}
@@ -22,7 +25,7 @@ checked>
 {% else %}
 unchecked>
 {% endif %}
-<input type="hidden" name="redirect_url" value="/user/{{user.username}}">
+<input type="hidden" name="redirect_url" value="/?user_id={{user.id}}">
 <br>
 <button id="post" class="submit-button-style">submit</button>
 </form>

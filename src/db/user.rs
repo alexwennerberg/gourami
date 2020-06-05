@@ -35,8 +35,9 @@ impl RegistrationKey {
 // a hack
 #[derive(QueryableByName)]
 #[table_name = "users"]
-pub struct Username {
+pub struct UserNameId {
     pub username: String,
+    pub id: i32,
 }
 
 #[derive(Debug, Clone, Default, Queryable, QueryableByName, Deserialize)]
@@ -45,6 +46,7 @@ pub struct User {
     pub id: i32,
     pub username: String,
     pub email: Option<String>, // TODO option
+    pub website: String, // TODO option
     pub bio: String,
     pub created_time: String,
     pub password: Option<String>,

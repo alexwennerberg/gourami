@@ -5,12 +5,11 @@
 <article class="note">
 {% endif %}
   <div class="note-meta">
-  {% if note.note.neighborhood %}<span title="A neighborhood post shared with other servers">🏠</span>{%endif%}
-  {% if note.note.is_remote %}<span title="A remote post coming from another server">🌎<span>{%endif%}
-  <a href="/note/{{note.note.id}}">📝{{note.note.id}}</a>
+  {% if note.note.neighborhood %}<span title="A public post">🌎</span>{%endif%}
+  <a href="/?note_id={{note.note.id}}">📝{{note.note.id}}</a>
   <a
     class="bold"
-    href="/user/{{note.username}}">@{{note.username}}</a> {{note.note.relative_timestamp()}}
+    href="/?user_id={{note.user_id}}">@{{note.username}}</a> {{note.note.relative_timestamp()}}
 {% if global.logged_in  %}
 <a title="reply" href="#" onclick="reply({{note.note.id}}, '{{note.username}}')">↪</a>
   {% endif %}
