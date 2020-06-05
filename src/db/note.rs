@@ -139,12 +139,12 @@ pub fn parse_note_text(text: &str) -> String {
         .replace_all(&html_clean, &replace_str as &str)
         .to_string();
     let note_regex = Regex::new(r"\B(📝|&gt;&gt;)(\d+)").unwrap();
-    let replace_str = "<a href=\"/note/$2\">$0</a>";
+    let replace_str = "<a href=\"?note_id=$2\">$0</a>";
     let notes_parsed = note_regex
         .replace_all(&urls_parsed, &replace_str as &str)
         .to_string();
     let person_regex = Regex::new(r"\B(@)(\S+)").unwrap();
-    let replace_str = "<a href=\"/user/$2\">$0</a>";
+    let replace_str = "<a href=\"?username=$2\">$0</a>";
     let people_parsed = person_regex
         .replace_all(&notes_parsed, &replace_str as &str)
         .to_string();

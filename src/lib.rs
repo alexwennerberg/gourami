@@ -431,6 +431,9 @@ fn get_notes(logged_in: bool, params: &GetPostsParams) -> Result<Vec<UserNote>, 
     if let Some(u_id) = params.user_id {
         query = query.filter(u::id.eq(u_id));
     }
+    if let Some(uname) = &params.username {
+        query = query.filter(u::username.eq(uname));
+    }
     if let Some(search) = params.search_string.clone() {
         query = query.filter(n::content.like(format!("%{}%", search)));
     }
@@ -475,7 +478,10 @@ fn render_timeline(
     use db::schema::users::dsl as u;
     let user = match params.user_id {
         Some(u_id) => u::users.filter(u::id.eq(u_id)).first(&POOL.get().unwrap()).ok(),
-        None => None,
+        None => match &params.username {
+            Some(uname) => u::users.filter(u::username.eq(uname)).first(&POOL.get().unwrap()).ok(),
+            None => None,
+        }
     };
     header.page_num = params.page;
     // TODO -- ignore neighborhood replies
