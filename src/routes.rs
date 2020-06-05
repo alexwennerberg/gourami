@@ -12,9 +12,8 @@ use warp::{
 
 pub async fn run_server() {
     // NOT TESTED YET
-    let public = std::env::var("PUBLIC").ok() == Some("1".to_owned());
-    let session_filter = move || session::create_session_filter(public).clone();
-    let private_session_filter = move || session::create_session_filter(false).clone();
+    let optional_session_filter = move || session::create_session_filter(true).clone();
+    let session_filter = move || session::create_session_filter(false).clone();
 
     // Background worker for sending activitypub messages
     // TODO -- Improve concurrency. each request is blocking.
@@ -63,31 +62,21 @@ pub async fn run_server() {
             |_| reply::json(&ap::server_actor_json()), // how do async work
         );
 
+    // replace with timeline query
     let home = warp::path::end()
-        .and(session_filter())
+        .and(optional_session_filter())
         .and(query())
         .and(path::full())
-        .map(|a, p, u| render_timeline(a, &p, u, get_notes(&p)));
+        .map(|user: Option<User>, params, url| render_timeline(user.clone(), &params, url, get_notes(user.is_some(), &params)));
 
-    let user_page = session_filter()
-        .and(path!("user" / String))
-        .and(query())
-        .and(path::full())
-        .map(user_page);
-
-    let user_edit_page = private_session_filter()
+    let user_edit_page = session_filter()
         .and(path!("user" / String / "edit"))
         .map(render_user_edit_page);
 
-    let edit_user = private_session_filter()
+    let edit_user = session_filter()
         .and(path!("user" / String / "edit"))
         .and(form())
         .map(edit_user);
-
-    let note_page = session_filter()
-        .and(path!("note" / i32))
-        .and(path::full())
-        .map(note_page);
 
     let server_info_page = session_filter()
         .and(path("server_info"))
@@ -106,13 +95,13 @@ pub async fn run_server() {
     let do_logout = path("logout").and(cookie::cookie("EXAUTH")).map(do_logout);
 
     let create_note = path("create_note")
-        .and(private_session_filter())
+        .and(session_filter())
         .and(form())
         .and(with_sender)
         .and_then(handle_new_note_form);
 
     let delete_note = path("delete_note")
-        .and(private_session_filter())
+        .and(session_filter())
         .and(form())
         .map(|u: Option<User>, f: DeleteNoteRequest| match u {
             Some(u) => {
@@ -161,8 +150,6 @@ pub async fn run_server() {
     let html_renders = home
         .or(login_page)
         .or(register_page)
-        .or(user_page)
-        .or(note_page)
         .or(server_info_page)
         .or(user_edit_page);
     let forms = do_register

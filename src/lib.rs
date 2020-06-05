@@ -25,7 +25,7 @@ pub use db::conn::POOL;
 use db::note;
 use db::note::{Note, NoteInput};
 use db::server_mutuals::ServerMutual;
-use db::user::{NewUser, RegistrationKey, User, Username};
+use db::user::{NewUser, RegistrationKey, User, UserNameId};
 use diesel::insert_into;
 use diesel::prelude::*;
 use hyper;
@@ -39,22 +39,6 @@ mod db;
 pub mod error;
 pub mod routes;
 mod session;
-
-#[derive(Template)]
-#[template(path = "user.html")]
-struct UserTemplate<'a> {
-    global: Global<'a>,
-    notes: Vec<UserNote>,
-    user: User,
-}
-
-#[derive(Template)]
-#[template(path = "note.html")]
-struct NoteTemplate<'a> {
-    global: Global<'a>,
-    note_thread: Vec<UserNote>,
-    // thread
-}
 
 #[derive(Template)]
 #[template(path = "error.html")]
@@ -76,6 +60,8 @@ struct UserEditTemplate<'a> {
 struct TimelineTemplate<'a> {
     global: Global<'a>,
     notes: Vec<UserNote>,
+    params: &'a GetPostsParams,
+    user: Option<User>
 }
 
 #[derive(Template)]
@@ -374,39 +360,30 @@ struct GetPostsParams {
     all: Option<bool>,
     search_string: Option<String>,
     user_id: Option<i32>,
-}
-fn default_page() -> i64 {
-    1
+    username: Option<String>,
+    note_id: Option<i32>,
 }
 
-impl Default for GetPostsParams {
-    // is this used?
-    fn default() -> Self {
-        GetPostsParams {
-            page: 1,
-            user_id: None,
-            neighborhood: Some(false),
-            all: Some(false),
-            search_string: None,
-        }
-    }
+fn default_page() -> i64 {
+    1
 }
 
 pub struct UserNote {
     note: Note,
     username: String,
+    user_id: i32,
 }
 
 fn get_single_note(note_id: i32) -> Option<Vec<UserNote>> {
     // Get note and all children, recursively
     let conn = &POOL.get().unwrap();
-    let results: Vec<(Note, Username)> = diesel::sql_query(format!(
+    let results: Vec<(Note, UserNameId)> = diesel::sql_query(format!(
         r"with recursive tc( p )
       as ( values({})
           union select id from notes, tc
                where notes.in_reply_to = tc.p
                      )
-                     select notes.*, users.username from notes 
+                     select notes.*, users.username, users.id from notes 
                      join users on notes.user_id = users.id 
                      where notes.id in tc",
         note_id
@@ -421,6 +398,7 @@ fn get_single_note(note_id: i32) -> Option<Vec<UserNote>> {
                 UserNote {
                     note: a.0,
                     username: a.1.username,
+                    user_id: a.1.id,
                 }
             })
             .collect(),
@@ -435,10 +413,13 @@ fn get_local_users() -> Result<Vec<User>, diesel::result::Error> {
 }
 
 /// We have to do a join here
-fn get_notes(params: &GetPostsParams) -> Result<Vec<UserNote>, diesel::result::Error> {
+fn get_notes(logged_in: bool, params: &GetPostsParams) -> Result<Vec<UserNote>, diesel::result::Error> {
     use db::schema::notes::dsl as n;
     use db::schema::users::dsl as u;
     // TODO -- add whether this is complete so i can page properly
+    if let Some(n_id) = params.note_id {
+        return Ok(get_single_note(n_id).unwrap()) // TODO filter replies logged out
+    }
     let mut query = n::notes
         .inner_join(u::users)
         .order(n::id.desc())
@@ -452,6 +433,9 @@ fn get_notes(params: &GetPostsParams) -> Result<Vec<UserNote>, diesel::result::E
         query = query.filter(n::content.like(format!("%{}%", search)));
     }
     // this is wonky
+    if !logged_in {
+        query = query.filter(n::neighborhood.eq(true))
+    }
     if !params.all.is_some() {
         match params.neighborhood {
             Some(true) => query = query.filter(n::neighborhood.eq(true)),
@@ -465,6 +449,7 @@ fn get_notes(params: &GetPostsParams) -> Result<Vec<UserNote>, diesel::result::E
         .map(|a| UserNote {
             note: a.0,
             username: a.1.username,
+            user_id: a.1.id,
         })
         .collect())
 }
@@ -485,9 +470,6 @@ fn render_timeline(
     let mut header = Global::create(auth_user, url_with_params);
     header.page_title = "";
     // wonky
-    if params.neighborhood == Some(true) {
-        header.page_title = "neighborhood";
-    }
     header.page_num = params.page;
     // TODO -- ignore neighborhood replies
     match notes {
@@ -499,6 +481,8 @@ fn render_timeline(
             render_template(&TimelineTemplate {
                 global: header,
                 notes: n,
+                user: None, // TODO
+                params: params
             })
         }
         _ => render_template(&ErrorTemplate {
@@ -528,56 +512,6 @@ fn server_info_page(auth_user: Option<User>) -> impl Reply {
     })
 }
 
-fn note_page(auth_user: Option<User>, note_id: i32, path: FullPath) -> impl Reply {
-    let note_thread = get_single_note(note_id);
-    if let Some(n) = note_thread {
-        render_template(&NoteTemplate {
-            global: Global::create(auth_user, path.as_str()),
-            note_thread: n,
-        })
-    } else {
-        render_template(&ErrorTemplate {
-            global: Global::create(auth_user, path.as_str()),
-            error_message: "Note not found",
-        })
-    }
-}
-
-fn user_page(
-    auth_user: Option<User>,
-    user_name: String,
-    mut params: GetPostsParams,
-    path: FullPath,
-) -> impl Reply {
-    let mut header = Global::create(auth_user, path.as_str()); // maybe if i'm clever i can abstract this away
-    header.page_num = params.page;
-    use db::schema::users::dsl::*;
-    let conn = &POOL.get().unwrap();
-    let user: Option<User> = users
-        .filter(username.eq(user_name))
-        .first::<User>(conn)
-        .ok();
-    if let Some(u) = user {
-        params.user_id = Some(u.id);
-        let notes = get_notes(&params).unwrap();
-        // NOTE -- breaks when  exactly 50 notes
-        if notes.len() == PAGE_SIZE as usize {
-            header.has_more = true;
-        }
-        render_template(&UserTemplate {
-            global: header,
-            user: u.clone(), // TODO stop cloning
-            notes: notes,
-        })
-    } else {
-        render_template(&ErrorTemplate {
-            global: header,
-            error_message: "User not found",
-            ..Default::default()
-        })
-    }
-}
-
 fn render_user_edit_page(user: Option<User>, user_name: String) -> impl Reply {
     let u = user.clone().unwrap();
     let global = Global::create(user, "/edit");
@@ -596,14 +530,6 @@ fn render_user_edit_page(user: Option<User>, user_name: String) -> impl Reply {
 }
 
 pub fn get_outbox() {}
-
-// pub fn post_outbox(message: Value) {}
-
-// TODO figure out how to follow mastodon
-//
-// pub fn user_followers(user_name: String) {}
-
-// pub fn user_following(user_name: String) {}
 
 use warp::Buf;
 
