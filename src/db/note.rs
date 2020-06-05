@@ -29,7 +29,7 @@ pub struct Note {
 
 pub fn get_url(note_id: i32) -> String {
     // TODO move domain url function
-    format!("{}/note/{}", SERVER.global_id, note_id)
+    format!("{}/?note_id={}", SERVER.global_id, note_id)
 }
 
 impl Note {
@@ -194,7 +194,7 @@ mod tests {
     #[test]
     fn test_user_replace() {
         let src = "@joe whats up @sally";
-        let linked = "<a href=\"/user/joe\">@joe</a> whats up <a href=\"/user/sally\">@sally</a>";
+        let linked = "<a href=\"?username=joe\">@joe</a> whats up <a href=\"?username=sally\">@sally</a>";
         assert!(parse_note_text(src) == linked)
     }
 
@@ -202,7 +202,7 @@ mod tests {
     fn test_note_replace() {
         let src = "📝123 cool post >>456";
         let linked =
-            "<a href=\"/note/123\">📝123</a> cool post <a href=\"/note/456\">&gt;&gt;456</a>";
+            "<a href=\"?note_id=123\">📝123</a> cool post <a href=\"?note_id=456\">&gt;&gt;456</a>";
         assert!(parse_note_text(src) == linked)
     }
 
