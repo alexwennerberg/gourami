@@ -2,8 +2,6 @@ export DATABASE_URL=sample.db
 export RUST_LOG=debug,hyper=info,html5ever=info
 export GOURAMI_DOMAIN="localhost:3030"
 export SSL_ENABLED="0"
-# Public instances will make all posts visible to anyone
-export PUBLIC="0"
 
 # Used for http signature verification. Not necessary if you aren't federating your server.
 # If you are using federation, you'll have to generate these keys.

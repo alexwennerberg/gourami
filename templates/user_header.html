@@ -3,10 +3,10 @@
   <b>user:</b> {{ user.username }} (#{{user.id}})
   <br>
   <b>bio:</b> {{user.bio}}
+  <br>
   {% match user.email %}
     {%when Some with (e) %}
-      {%if user.show_email%}
-      <br>
+      {%if user.show_email && global.logged_in %}
       <b>email:</b> <a href="mailto:{{e}}">{{e}}</a><br>
       {%endif %}
     {% when None %}
