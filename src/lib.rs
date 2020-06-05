@@ -417,8 +417,10 @@ fn get_notes(logged_in: bool, params: &GetPostsParams) -> Result<Vec<UserNote>, 
     use db::schema::notes::dsl as n;
     use db::schema::users::dsl as u;
     // TODO -- add whether this is complete so i can page properly
-    if let Some(n_id) = params.note_id {
-        return Ok(get_single_note(n_id).unwrap()) // TODO filter replies logged out
+    if logged_in { 
+        if let Some(n_id) = params.note_id {
+            return Ok(get_single_note(n_id).unwrap()) // TODO filter replies logged out
+        }
     }
     let mut query = n::notes
         .inner_join(u::users)
@@ -470,6 +472,11 @@ fn render_timeline(
     let mut header = Global::create(auth_user, url_with_params);
     header.page_title = "";
     // wonky
+    use db::schema::users::dsl as u;
+    let user = match params.user_id {
+        Some(u_id) => u::users.filter(u::id.eq(u_id)).first(&POOL.get().unwrap()).ok(),
+        None => None,
+    };
     header.page_num = params.page;
     // TODO -- ignore neighborhood replies
     match notes {
@@ -481,7 +488,7 @@ fn render_timeline(
             render_template(&TimelineTemplate {
                 global: header,
                 notes: n,
-                user: None, // TODO
+                user: user,
                 params: params
             })
         }
