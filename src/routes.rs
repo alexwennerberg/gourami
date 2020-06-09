@@ -11,8 +11,6 @@ use warp::{
 };
 
 pub async fn run_server() {
-    // NOT TESTED YET
-    let optional_session_filter = move || session::create_session_filter(true).clone();
     let session_filter = move || session::create_session_filter(false).clone();
 
     // Background worker for sending activitypub messages
@@ -63,14 +61,14 @@ pub async fn run_server() {
         );
 
     let home = warp::path::end()
-        .and(optional_session_filter())
+        .and(session_filter())
         .and(query())
         .and(path::full())
         .map(|user: Option<User>, params, url| render_timeline(user.clone(), &params, url, get_notes(user.is_some(), &params)));
 
     // a bit awkward
     let user_alias = warp::path!("user" / String)
-        .and(optional_session_filter())
+        .and(session_filter())
         .and(query::<GetPostsParams>())
         .and(path::full())
         .map(|username: String, user: Option<User>, mut params: GetPostsParams, url| {
@@ -80,7 +78,7 @@ pub async fn run_server() {
 
     // a bit awkward
     let note_alias = warp::path!("note" / i32)
-        .and(optional_session_filter())
+        .and(session_filter())
         .and(query::<GetPostsParams>())
         .and(path::full())
         .map(|note: i32, user: Option<User>, mut params: GetPostsParams, url| {

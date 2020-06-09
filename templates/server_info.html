@@ -18,7 +18,7 @@ Here is a list of users on this server -- maybe introduce yourself to someone yo
 
 <br>
 {% for user in users %}
-{% include "user_header.html" %}
+<a href="/?user_id={{user.id}}">@{{user.username}}</a> 
 {% endfor %}
 </div>
 </table>
