@@ -2,7 +2,7 @@
 
 ![Build and Test](https://github.com/alexwennerberg/gourami/workflows/Build%20and%20Test/badge.svg)
 
-An intentionally small, community-focused ultra-lightweight ActivityPub social network. See the flagship server at https://dev.gourami.social/ and [reach out to me](mailto:alex@alexwennerberg.com) if you want an invite or use one of these free invites:
+An intentionally small, community-focused ultra-lightweight decentralized social network. See the flagship server at https://dev.gourami.social/ and [reach out to me](mailto:alex@alexwennerberg.com) if you want an invite or use one of these free invites:
 
 * https://dev.gourami.social/register?key=72586361
 * https://dev.gourami.social/register?key=60686228
@@ -19,7 +19,7 @@ Gourami differs from existing social networks in a number of ways:
 * **Decentralized** -- Gourami uses [ActivityPub](https://activitypub.rocks/) to connect separate servers, but with an implementation that differs from existing ActivityPub servers such as Mastodon. Instances federate at the server level, rather than the user level, which means all users on the server share the same "neighborhood".
 * **Invite-only and closed** -- a community curated by the server admin, rather than open to all. Server-local posts are private. 
 * **Community, rather than user focused** -- All users share the same timeline(s), and ActivityPub federation occurs on the server, rather than user level. This is somewhat different than how most ActivityPub servers work, and focuses on privacy, community, and locality over easily-shareable public content. This may change if users are interested in a more conventional AP implementation, but I thought it'd be interesting to experiment with a different model for federation.
-* **Free and open source** -- I find very concerning the way that the very space for building community and networking with our friends is controlled by corporations with potentially different values and goals than their users. Large, for-profit social networks have economic incentives that distorts the content and the kind of communities that can develop on them. Gourami is 100% free and open source, licensed under [AGPL v3](LICENSE).
+* **Free and open source** -- Gourami is 100% free and open source, licensed under [AGPL v3](LICENSE).
 * **A social network with physical context** -- Gourami should be easy to deploy in a physical space (such as a home, apartment building, coffee shop or [wireless mesh network](https://www.nycmesh.net/)) or among people in a specific physical community, such as a university or town. In *How to Do Nothing*, Jenny Odell discusses the lack of a context, specifically physical and temporal context, in social media, and calls for social networks that are tied to physical space. While Gourami does not force you to tie a deployment to a place, it is designed in such a way that such a deployment would be relatively easy.
 * **Extremely lightweight & fast** -- very little Javascript, plain text, small page sizes. Should run on extremely lightweight/cheap hardware and low-bandwidth networks. 
 * **Old-school and [Brutalist](https://brutalist-web.design/)** -- Stark and minimal, the design and interface should emphasize, rather than hide, the underlying building blocks of the web that comprise it. This will give Gourami a feel similar to 90s or 2000s web forums, or Twitter circa 2009. 
