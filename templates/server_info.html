@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% block content %}
 <div class="text-block padded">
-  Welcome to Gourami, an intentionally small, minimalist, invite-only <a href="https://activitypub.rocks/">ActivityPub</a>-based social network. See the <a href="https://github.com/alexwennerberg/gourami">project page</a> for more info! This server can connect with other Gourami servers or other services that implement ActivityPub through the neighborhood. Right now, we are linked with the following actors:
+  Welcome to Gourami, an intentionally small, minimalist, invite-only <a href="https://activitypub.rocks/">ActivityPub</a>-based social network. See the <a href="https://github.com/alexwennerberg/gourami">project page</a> for more info! This server can connect with other Gourami servers or other services that implement ActivityPub through the neighborhood. Be aware that any post that you share with the neibhorhood is potentially public, and won't be deleted from servers it's shared with if you delete it, so be careful! Right now, we are linked with the following actors:
   <br>
 <table>
 {% for server in server_mutuals %}

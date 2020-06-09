@@ -5,7 +5,8 @@
 <article class="note">
 {% endif %}
   <div class="note-meta">
-  {% if note.note.neighborhood %}<span title="A public post">🌎</span>{%endif%}
+  {% if note.note.neighborhood %}<span title="A neighborhood post shared with other servers">🏠</span>{%endif%}
+  {% if note.note.is_remote %}<span title="A remote post coming from another server">🌎<span>{%endif%}
   <a href="/?note_id={{note.note.id}}">📝{{note.note.id}}</a>
   <a
     class="bold"
