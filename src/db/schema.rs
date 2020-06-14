@@ -14,6 +14,7 @@ table! {
 table! {
     registration_keys (value) {
         value -> Varchar,
+        inviting_user_id -> Nullable<Integer>,
     }
 }
 
@@ -29,6 +30,7 @@ table! {
         admin -> Bool,
         show_email -> Bool,
         remote_user -> Bool,
+        can_invite -> Bool,
     }
 }
 

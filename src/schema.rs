@@ -23,6 +23,8 @@ table! {
 table! {
     registration_keys (value) {
         value -> Nullable<Text>,
+        created_time -> Nullable<Timestamp>,
+        inviting_user_id -> Nullable<Binary>,
     }
 }
 
@@ -52,16 +54,18 @@ table! {
         username -> Nullable<Text>,
         email -> Nullable<Text>,
         bio -> Nullable<Text>,
-        website -> Varchar,
         created_time -> Nullable<Timestamp>,
         password -> Nullable<Text>,
         admin -> Nullable<Bool>,
         show_email -> Nullable<Bool>,
         remote_user -> Nullable<Bool>,
+        website -> Nullable<Text>,
+        can_invite -> Nullable<Bool>,
     }
 }
 
 joinable!(notes -> users (user_id));
+joinable!(registration_keys -> users (inviting_user_id));
 joinable!(sessions -> users (user_id));
 
 allow_tables_to_appear_in_same_query!(

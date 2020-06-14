@@ -95,6 +95,10 @@ pub async fn run_server() {
         .and(form())
         .map(edit_user);
 
+    let generate_invite = session_filter()
+        .and(path!("generate_invite"))
+        .map(generate_invite);
+
     let server_info_page = session_filter()
         .and(path("server_info"))
         .map(server_info_page);
@@ -176,7 +180,8 @@ pub async fn run_server() {
         .or(do_logout)
         .or(create_note)
         .or(delete_note)
-        .or(edit_user);
+        .or(edit_user)
+        .or(generate_invite);
     let api_post = post_server_inbox;
 
     let routes = warp::get()

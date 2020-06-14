@@ -4,7 +4,7 @@
 <br>
 <button id="post" class="submit-button-style">create note</button>
 <input type="checkbox" id="neighborhood" name="neighborhood" 
-{% if global.page_title == "neighborhood" %} 
+{% if params.neighborhood.is_some() %} 
 checked>
 {% else %}
 unchecked>

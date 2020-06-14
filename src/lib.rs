@@ -13,6 +13,7 @@ use serde_json::Value;
 use std::collections::BTreeMap;
 use std::convert::Infallible;
 use zxcvbn::zxcvbn;
+use uuid::Uuid;
 
 use warp::filters::path::FullPath;
 use warp::http;
@@ -26,6 +27,7 @@ use db::note;
 use db::note::{Note, NoteInput};
 use db::server_mutuals::ServerMutual;
 use db::user::{NewUser, RegistrationKey, User, UserNameId};
+use db::invite::{NewRegistrationKey};
 use diesel::insert_into;
 use diesel::prelude::*;
 use hyper;
@@ -523,6 +525,24 @@ fn server_info_page(auth_user: Option<User>) -> impl Reply {
         users: users,
         server_mutuals: server_mutuals,
     })
+}
+
+fn generate_invite(auth_user: Option<User>) -> impl Reply {
+    if let Some(u) = auth_user {
+        if u.can_invite {
+            // generate invite
+            use db::schema::registration_keys::dsl::*;
+            let invite_uuid = Uuid::new_v4();
+            let new_reg_key = NewRegistrationKey {
+                inviting_user_id: u.id,
+                value: invite_uuid.to_string(),
+            };
+            insert_into(registration_keys).values(new_reg_key).execute(&POOL.get().unwrap()).unwrap();
+            let uri = format!("/register?key={}", invite_uuid).parse().unwrap();
+            return redirect(uri)
+        }
+    }
+    redirect(http::Uri::from_static("/register")) // TODO better error
 }
 
 fn render_user_edit_page(user: Option<User>, user_name: String) -> impl Reply {

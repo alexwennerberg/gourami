@@ -13,6 +13,12 @@
   {%endmatch%}
   <b>website:</b> <a href="{{user.website}}">{{user.website}}</a> 
   {% if global.me.id == user.id%}
+    {% if global.me.can_invite %}
+      <br>
+      <form method="post" action="/generate_invite" class="inline">
+      <button type="submit" name="submit_param" value="submit_value"
+                                                class="link-button">invite</button></form>
+    {% endif %}
   <br>
   <a href="/user/{{user.username}}/edit">edit</a>
   <div>

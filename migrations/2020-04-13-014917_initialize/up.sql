@@ -9,13 +9,17 @@ CREATE TABLE users (
   password VARCHAR(255),
   admin BOOLEAN default false,
   show_email BOOLEAN default false,
-  remote_user BOOLEAN default false
+  remote_user BOOLEAN default false,
+  website VARCHAR(255) default "",
+  can_invite boolean default false
 );
 CREATE UNIQUE INDEX users_username_idx ON users (username);
 CREATE UNIQUE INDEX users_email_idx ON users (email);
 
 CREATE TABLE registration_keys (
-  value VARCHAR PRIMARY KEY
+  value VARCHAR PRIMARY KEY,
+  created_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  inviting_user_id REFERENCES users(id)
 );
 
 CREATE TABLE activities (

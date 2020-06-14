@@ -54,6 +54,7 @@ pub struct User {
     pub admin: bool,
     pub show_email: bool,
     pub remote_user: bool,
+    pub can_invite: bool,
 }
 
 impl User {
@@ -107,12 +108,3 @@ pub struct NewRemoteUser {
     pub username: String,
     pub remote_user: bool,
 }
-// impl NewUser {
-
-// }
-// impl validate
-fn validate_username() {}
-
-fn validate_password() {}
-
-fn validate_email() {}
