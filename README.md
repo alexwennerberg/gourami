@@ -75,6 +75,6 @@ Many projects inspired my work here, and I want to mention them.
 * [Honk](https://flak.tedunangst.com/post/ActivityPub-as-it-has-been-understood) and Ted Unangst's work with ActivityPub
 * https://github.com/rustodon/rustodon
 * https://github.com/LemmyNet/lemmy
-* https://gemini.circumlunar.space/space
+* https://gemini.circumlunar.space
 
 Logo from https://twemoji.twitter.com/
