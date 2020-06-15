@@ -4,10 +4,11 @@
 
 An intentionally small, community-focused ultra-lightweight decentralized social network. See the flagship server at https://dev.gourami.social/ and [reach out to me](mailto:alex@alexwennerberg.com) if you want an invite or use one of these free invites:
 
-* https://dev.gourami.social/register?key=57ef988b-c0ca-42a9-ba47-30855120c5ae
-* https://dev.gourami.social/register?key=b8406ad3-41b0-49ca-9923-4f6b25000eeb
-* https://dev.gourami.social/register?key=8aec424c-4d5a-4a5a-a71d-28b1cdf3e74d
-* https://dev.gourami.social/register?key=f60fc592-dfbc-43e9-83b2-155d8fdf6004
+* https://dev.gourami.social/register?key=b3e0848a-49e4-4f40-b973-5fa679de53d7
+* https://dev.gourami.social/register?key=e9c20d4b-fcc0-4f6d-a12f-24f3afd8d819
+* https://dev.gourami.social/register?key=63e2a8db-61ed-4df9-adbb-c4048d3e9166
+* https://dev.gourami.social/register?key=dbc974f0-9e9c-45bf-87ea-1d3cff1b87c3
+* https://dev.gourami.social/register?key=82a32da2-6f46-43e7-a1cb-92d24dbba12d
 
 
 ![image](docs/demo.png)
