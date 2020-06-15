@@ -22,7 +22,7 @@ jobs:
         uses: svenstaro/upload-release-action@v1-release
         with:
           repo_token: ${{ secrets.GITHUB_TOKEN }}
-          file: target/release/gourami_social
+          file: target/release/gourami
           asset_name: gourami
           tag: ${{ github.ref }}
           overwrite: true
