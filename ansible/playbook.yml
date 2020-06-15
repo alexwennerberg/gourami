@@ -14,8 +14,8 @@
           - libsqlite3-dev
     - name: copy binary over
       copy:
-        src: ../target/release/gourami_social
-        dest: /home/gourami/gourami_social # TODO template etc
+        src: ../target/release/gourami
+        dest: /home/gourami/gourami # TODO template etc
         owner: gourami
     - name: copy static files over
       copy:

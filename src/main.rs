@@ -1,8 +1,8 @@
 use clap::{App, Arg, SubCommand};
 use dotenv;
-use gourami_social::ap;
-use gourami_social::routes::run_server;
-use gourami_social::POOL;
+use gourami::ap;
+use gourami::routes::run_server;
+use gourami::POOL;
 
 #[macro_use]
 extern crate diesel_migrations;

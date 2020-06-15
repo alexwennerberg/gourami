@@ -7,7 +7,7 @@ Type=simple
 Restart=always
 User=root
 WorkingDirectory=/home/gourami
-ExecStart=/home/gourami/gourami_social run
+ExecStart=/home/gourami/gourami run
 
 [Install]
 WantedBy=multi-user.target

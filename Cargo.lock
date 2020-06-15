@@ -648,7 +648,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "gourami_social"
+name = "gourami"
 version = "0.1.7"
 dependencies = [
  "activitystreams",

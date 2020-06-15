@@ -46,7 +46,7 @@ Run `cargo install --path .`
 
 Configuration is done via [dotenv](https://github.com/dotenv-rs/dotenv). For development and testing, the `sample_env` file is good to get started -- copy it to `.env` in the same directory that you're running gourami.
 
-Run the local server with `gourami_social run`
+Run the local server with `gourami run`
 
 To create a user account:
 
