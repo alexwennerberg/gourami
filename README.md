@@ -32,6 +32,8 @@ Gourami differs from existing social networks in a number of ways:
 
 ## Local Installation
 
+I'm working on pre-built binaries. You can find them at the [releases](https://github.com/alexwennerberg/gourami/releases) page. Right now there's just a single binary built on ubuntu -- I'll add support for other platforms soon
+
 Make sure you have the following dependencies:
 
 * sqlite3
