@@ -64,27 +64,48 @@ pub async fn run_server() {
         .and(session_filter())
         .and(query())
         .and(path::full())
-        .map(|user: Option<User>, params, url| render_timeline(user.clone(), &params, url, get_notes(user.is_some(), &params)));
+        .map(|user: Option<User>, params, url| {
+            render_timeline(
+                user.clone(),
+                &params,
+                url,
+                get_notes(user.is_some(), &params),
+            )
+        });
 
     // a bit awkward
     let user_alias = warp::path!("user" / String)
         .and(session_filter())
         .and(query::<GetPostsParams>())
         .and(path::full())
-        .map(|username: String, user: Option<User>, mut params: GetPostsParams, url| {
-            params.username = Some(username);
-            render_timeline(user.clone(), &params, url, get_notes(user.is_some(), &params))
-        });
+        .map(
+            |username: String, user: Option<User>, mut params: GetPostsParams, url| {
+                params.username = Some(username);
+                render_timeline(
+                    user.clone(),
+                    &params,
+                    url,
+                    get_notes(user.is_some(), &params),
+                )
+            },
+        );
 
     // a bit awkward
     let note_alias = warp::path!("note" / i32)
         .and(session_filter())
         .and(query::<GetPostsParams>())
         .and(path::full())
-        .map(|note: i32, user: Option<User>, mut params: GetPostsParams, url| {
-            params.note_id = Some(note);
-            render_timeline(user.clone(), &params, url, get_notes(user.is_some(), &params))
-        });
+        .map(
+            |note: i32, user: Option<User>, mut params: GetPostsParams, url| {
+                params.note_id = Some(note);
+                render_timeline(
+                    user.clone(),
+                    &params,
+                    url,
+                    get_notes(user.is_some(), &params),
+                )
+            },
+        );
 
     let user_edit_page = session_filter()
         .and(path!("user" / String / "edit"))
@@ -121,17 +142,16 @@ pub async fn run_server() {
         .and(with_sender)
         .and_then(handle_new_note_form);
 
-    let delete_note = path("delete_note")
-        .and(session_filter())
-        .and(form())
-        .map(|u: Option<User>, f: DeleteNoteRequest| match u {
+    let delete_note = path("delete_note").and(session_filter()).and(form()).map(
+        |u: Option<User>, f: DeleteNoteRequest| match u {
             Some(u) => {
                 delete_note(f.note_id).unwrap(); // TODO fix unwrap
                 let red_url: http::Uri = f.redirect_url.parse().unwrap();
                 redirect(red_url)
             }
             None => redirect(http::Uri::from_static("error")),
-        });
+        },
+    );
 
     // couldn't figure out how to get this folder to render on root properly
     let robots = warp::path("robots.txt").and(warp::fs::file("./static/robots.txt"));

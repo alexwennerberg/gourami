@@ -12,8 +12,8 @@ extern crate lazy_static;
 use serde_json::Value;
 use std::collections::BTreeMap;
 use std::convert::Infallible;
-use zxcvbn::zxcvbn;
 use uuid::Uuid;
+use zxcvbn::zxcvbn;
 
 use warp::filters::path::FullPath;
 use warp::http;
@@ -23,11 +23,11 @@ use warp::{Filter, Rejection, Reply};
 
 use askama::Template;
 pub use db::conn::POOL;
+use db::invite::NewRegistrationKey;
 use db::note;
 use db::note::{Note, NoteInput};
 use db::server_mutuals::ServerMutual;
 use db::user::{NewUser, RegistrationKey, User, UserNameId};
-use db::invite::{NewRegistrationKey};
 use diesel::insert_into;
 use diesel::prelude::*;
 use hyper;
@@ -63,7 +63,7 @@ struct TimelineTemplate<'a> {
     global: Global<'a>,
     notes: Vec<UserNote>,
     params: &'a GetPostsParams,
-    user: Option<User>
+    user: Option<User>,
 }
 
 #[derive(Template)]
@@ -415,13 +415,16 @@ fn get_local_users() -> Result<Vec<User>, diesel::result::Error> {
 }
 
 /// We have to do a join here
-fn get_notes(logged_in: bool, params: &GetPostsParams) -> Result<Vec<UserNote>, diesel::result::Error> {
+fn get_notes(
+    logged_in: bool,
+    params: &GetPostsParams,
+) -> Result<Vec<UserNote>, diesel::result::Error> {
     use db::schema::notes::dsl as n;
     use db::schema::users::dsl as u;
     // TODO -- add whether this is complete so i can page properly
-    if logged_in { 
+    if logged_in {
         if let Some(n_id) = params.note_id {
-            return Ok(get_single_note(n_id).unwrap()) // TODO filter replies logged out
+            return Ok(get_single_note(n_id).unwrap()); // TODO filter replies logged out
         }
     }
     let mut query = n::notes
@@ -479,11 +482,17 @@ fn render_timeline(
     // wonky
     use db::schema::users::dsl as u;
     let user = match params.user_id {
-        Some(u_id) => u::users.filter(u::id.eq(u_id)).first(&POOL.get().unwrap()).ok(),
+        Some(u_id) => u::users
+            .filter(u::id.eq(u_id))
+            .first(&POOL.get().unwrap())
+            .ok(),
         None => match &params.username {
-            Some(uname) => u::users.filter(u::username.eq(uname)).first(&POOL.get().unwrap()).ok(),
+            Some(uname) => u::users
+                .filter(u::username.eq(uname))
+                .first(&POOL.get().unwrap())
+                .ok(),
             None => None,
-        }
+        },
     };
     header.page_num = params.page;
     // TODO -- ignore neighborhood replies
@@ -497,7 +506,7 @@ fn render_timeline(
                 global: header,
                 notes: n,
                 user: user,
-                params: params
+                params: params,
             })
         }
         _ => render_template(&ErrorTemplate {
@@ -537,9 +546,12 @@ fn generate_invite(auth_user: Option<User>) -> impl Reply {
                 inviting_user_id: u.id,
                 value: invite_uuid.to_string(),
             };
-            insert_into(registration_keys).values(new_reg_key).execute(&POOL.get().unwrap()).unwrap();
+            insert_into(registration_keys)
+                .values(new_reg_key)
+                .execute(&POOL.get().unwrap())
+                .unwrap();
             let uri = format!("/register?key={}", invite_uuid).parse().unwrap();
-            return redirect(uri)
+            return redirect(uri);
         }
     }
     redirect(http::Uri::from_static("/register")) // TODO better error

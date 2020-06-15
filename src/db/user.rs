@@ -1,10 +1,10 @@
 use super::schema::users;
+use crate::ap::SERVER;
 use bcrypt;
 use diesel::prelude::*;
 use diesel::sqlite::SqliteConnection;
 use serde::Deserialize;
 use std::env;
-use crate::ap::SERVER;
 
 #[derive(Debug, Clone, Default, Queryable, Deserialize)]
 pub struct RegistrationKey {
@@ -47,7 +47,7 @@ pub struct User {
     pub id: i32,
     pub username: String,
     pub email: Option<String>, // TODO option
-    pub website: String, // TODO option
+    pub website: String,       // TODO option
     pub bio: String,
     pub created_time: String,
     pub password: Option<String>,
@@ -59,11 +59,7 @@ pub struct User {
 
 impl User {
     pub fn get_url(&self) -> String {
-        format!(
-            "{}/?user_id={}",
-            SERVER.global_id,
-            self.id
-        )
+        format!("{}/?user_id={}", SERVER.global_id, self.id)
         // remote url?
     }
     pub fn authenticate(conn: &SqliteConnection, user: &str, pass: &str) -> Option<Self> {

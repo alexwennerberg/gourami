@@ -194,7 +194,8 @@ mod tests {
     #[test]
     fn test_user_replace() {
         let src = "@joe whats up @sally";
-        let linked = "<a href=\"?username=joe\">@joe</a> whats up <a href=\"?username=sally\">@sally</a>";
+        let linked =
+            "<a href=\"?username=joe\">@joe</a> whats up <a href=\"?username=sally\">@sally</a>";
         assert!(parse_note_text(src) == linked)
     }
 
