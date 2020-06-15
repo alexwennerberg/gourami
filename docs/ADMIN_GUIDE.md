@@ -7,13 +7,13 @@ If you want to administer a Gourami server, you'll need a few technical skills:
 
 ## Deployment
 
-Once you've built Gourami, you'll have a standalone binary that runs the server. Nothing else is needed, aside from Sqlite, OpenSSL and a TLS cert! I put together an ansible playbook that you may find helpful in `ansible/`. You'll need to modify the environment variables (an example is in sample_env) for your production deployment. If you are having trouble deploying Gourami, feel free to send me an email or open a GitHub issue. I plan on writing more detailed instructions for deploying a production server at some point. 
+Once you've built Gourami, you'll have a standalone binary that runs the server. Nothing else is needed, aside from Sqlite and a TLS cert! If you'd like, you can also set up an Nginx proxy. I put together an ansible playbook that you may find helpful in `ansible/`. You'll need to modify the environment variables (an example is in sample_env) for your production deployment. If you are having trouble deploying Gourami, feel free to send me an email or open a GitHub issue. I plan on writing more detailed instructions for deploying a production server at some point. 
 
-It should be relatively straightforward to deploy this on a Raspberry Pi too -- I plan on doing this at some point, and I'll put together a guide for it.
+I do not use Docker for my Gourami deployment, so I have not created any Dockerfiles. Since the only dependency not inside the binary is Sqlite, I question the value of using a Docker container.
 
 ## Inviting users
 
-Gourami is invite-only. Right now, you create an invite by adding a record to the invitation_keys table and sharing that key with the user you're inviting. You'll have to do this for yourself as well.
+Gourami is invite-only. You can control who can invite users by setting the can_invite flag for that user in the user table.
 
 ## Connecting with other servers.
 

@@ -15,11 +15,11 @@ An intentionally small, community-focused ultra-lightweight decentralized social
 
 ## Philosophy and Design
 
-Gourami differs from existing social networks in a number of ways:
+Gourami is...
 * **Intentionally small** -- designed to support 50-100 active users. I'm sure it could support more, but things could quickly become a mess. Gourami was hugely and directly inspired by the fantastic essay on [runyourown.social](https://runyourown.social). Gourami is designed to support relatively small communities, maybe tied to a specific interest, community, or physical location.
-* **Decentralized** -- Gourami uses [ActivityPub](https://activitypub.rocks/) to connect separate servers, but with an implementation that differs from existing ActivityPub servers such as Mastodon. Instances federate at the server level, rather than the user level, which means all users on the server share the same "neighborhood".
-* **Invite-only and closed** -- a community curated by the server admin, rather than open to all. Server-local posts are private. 
-* **Community, rather than user focused** -- All users share the same timeline(s), and ActivityPub federation occurs on the server, rather than user level. This is somewhat different than how most ActivityPub servers work, and focuses on privacy, community, and locality over easily-shareable public content. This may change if users are interested in a more conventional AP implementation, but I thought it'd be interesting to experiment with a different model for federation.
+* **Decentralized** -- Gourami uses [ActivityPub](https://activitypub.rocks/) to federate separate instances, so communities can communicate between instances.
+* **Invite-only and private** -- a community curated by the server admin, rather than open to all. Server-local posts are private. 
+* **Community, rather than user focused** -- All users share the same timeline(s), and ActivityPub federation occurs on the server, rather than user level. This is somewhat different than how most ActivityPub servers work, and focuses on privacy, community, and locality over easily-shareable public content. 
 * **Free and open source** -- Gourami is 100% free and open source, licensed under [AGPL v3](LICENSE).
 * **A social network with physical context** -- Gourami should be easy to deploy in a physical space (such as a home, apartment building, coffee shop or [wireless mesh network](https://www.nycmesh.net/)) or among people in a specific physical community, such as a university or town. In *How to Do Nothing*, Jenny Odell discusses the lack of a context, specifically physical and temporal context, in social media, and calls for social networks that are tied to physical space. While Gourami does not force you to tie a deployment to a place, it is designed in such a way that such a deployment would be relatively easy.
 * **Extremely lightweight & fast** -- very little Javascript, plain text, small page sizes. Should run on extremely lightweight/cheap hardware and low-bandwidth networks. 
@@ -28,11 +28,31 @@ Gourami differs from existing social networks in a number of ways:
 
 *Features that aren't implemented yet:*
 
-* **Mastodon/other AP server interop** -- Gourami manages identities in a somewhat different way than Mastodon and other ActivityPub microblogging services. I have experimented with Mastodon interop and it works to some degree, but I don't want to officially support it until it's more stable. It's currently disabled.
+* **Mastodon/other AP server interop** -- WIP, with the caveats in the next section.
+
+## Gourami is not (really) part of the "Fediverse"
+
+The Fediverse is a public network of servers that communicate mostly publicly on the open internet. There are advantages to this model, but also disadvantages:
+
+* For the average user, not ideologically motivated, it isn't *that* much different than Twitter, except in terms of the userbase.
+* Spam and abuse are constant battles.
+* Due to the above and other factors, the Fediverse has tended towards centralization in practice.
+
+Gourami is not anti-fediverse, but it follows a fundamentally different model for decentralization:
+
+* Servers are networked with servers, rather than users with users
+* Each server whitelists a small number of servers to federate with
+* All posts are shared either to the local instance, or to the neighborhood instances. Nothing is public.
+
+Gourami's model of federation is meant to decentralize not just on the level of architecture, but also on a social level -- where there is no central "fediverse" everyone participates in, but rather your server and the servers you choose to federate with. Gourami intends to mimic real world, physical communities, where a sense of place is restored. 
+
+Interop with other ActivityPub microblogging services is still a goal, but the manner in which servers network together is different than how Mastodon or other services.
 
 ## Local Installation
 
-I'm working on pre-built binaries. You can find them at the [releases](https://github.com/alexwennerberg/gourami/releases) page. Right now there's just a single binary built on ubuntu -- I'll add support for other platforms soon
+If you're on a Linux environment, the easiest way to get started is with the precompiled binaries. You can find them at the [releases](https://github.com/alexwennerberg/gourami/releases) page. 
+
+If you want to build Gourami yourself --
 
 Make sure you have the following dependencies:
 
@@ -47,7 +67,9 @@ Clone this repository with `git clone https://github.com/alexwennerberg/gourami`
 
 Run `cargo install --path .`
 
-Configuration is done via [dotenv](https://github.com/dotenv-rs/dotenv). For development and testing, the `sample_env` file is good to get started -- copy it to `.env` in the same directory that you're running gourami.
+### Configuration & getting started
+
+Configuration is done via [dotenv](https://github.com/dotenv-rs/dotenv). For development and testing, the `sample_env` file is good to get started for local testing -- copy it to `.env` in the same directory that you're running gourami.
 
 Run the local server with `gourami run`
 
@@ -56,6 +78,7 @@ To create a user account:
 * Run the sql command `insert into registration_keys values ("123")`
 * Go to `http://localhost:3030/register?key=123`
 * Create an account and log in
+* Have fun!
 
 ## Deployment
 

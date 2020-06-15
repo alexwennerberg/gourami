@@ -13,9 +13,10 @@ jobs:
       matrix:
         build-target:
           - "x86_64-unknown-linux-gnu"
-          - "x86_64-apple-darwin"
-          - "x86_64-pc-windows-gnu"
-          - "armv7-unknown-linux-gnueabihf"  # Some versions of rasp pi"
+          - "x86_64-unknown-linux-musl"
+          # - "x86_64-apple-darwin" broken
+          # - "x86_64-pc-windows-gnu" broken
+          # - "armv7-unknown-linux-gnueabihf"  # broken...
     steps:
       - uses: actions-rs/toolchain@v1
         with:
@@ -24,14 +25,15 @@ jobs:
           target: ${{ matrix.build-target }}
       - uses: actions/checkout@v2
       - name: Install sqlite
-        run: sudo apt-get update && sudo apt-get install sqlite3 libsqlite3-dev
+        # TODO split out or use cross
+        run: sudo apt-get update && sudo apt-get install sqlite3 libsqlite3-dev musl musl-tools
       - name: build
         run: cargo build --release --features="vendored-openssl" --target=${{matrix.build-target}}
       - name: Upload binaries to release
         uses: svenstaro/upload-release-action@v1-release
         with:
           repo_token: ${{ secrets.GITHUB_TOKEN }}
-          file: target/${{matrix.build-target}}/gourami
+          file: target/${{matrix.build-target}}/release/gourami
           asset_name: gourami-${{matrix.build-target}}
           tag: ${{ github.ref }}
           overwrite: true
