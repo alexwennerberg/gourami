@@ -1,6 +1,6 @@
 [package]
 name = "gourami"
-version = "0.1.7"
+version = "0.1.9"
 authors = ["alex wennerberg <alex@alexwennerberg.com>"]
 edition = "2018"
 
@@ -32,7 +32,9 @@ serde_urlencoded = "0.6.1"
 tokio = { version = "0.2.18", features = ["macros", "time", "sync"] }
 url = "2.1.1"
 uuid = { version = "0.8", features = ["v4"]}
-warp = {git = "https://github.com/seanmonstar/warp.git", rev = "497505a5", features = ["tls"]}
+warp = {version="0.2.3", features = ["tls"]}
 zxcvbn = "2.0.1"
 
-[dev-dependencies]
+
+[features]
+vendored-openssl = ['openssl/vendored']
