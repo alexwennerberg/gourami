@@ -1,4 +1,4 @@
-name: Build and Test
+name: Release binaries
 
 on:
   push:
@@ -12,15 +12,15 @@ jobs:
     steps:
       - uses: actions-rs/toolchain@v1
         with: 
-          rust-version: stable
+          toolchain: stable
       - uses: actions/checkout@v2
       - name: build
         run: cargo build --release
-    - name: Upload binaries to release
-      uses: svenstaro/upload-release-action@v1-release
-      with:
-        repo_token: ${{ secrets.GITHUB_TOKEN }}
-        file: target/release/gourami_social
-        asset_name: gourami
-        tag: ${{ github.ref }}
-        overwrite: true
+      - name: Upload binaries to release
+        uses: svenstaro/upload-release-action@v1-release
+        with:
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          file: target/release/gourami_social
+          asset_name: gourami
+          tag: ${{ github.ref }}
+          overwrite: true
