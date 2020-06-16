@@ -2,6 +2,9 @@ export DATABASE_URL=sample.db
 export RUST_LOG=debug,hyper=info,html5ever=info
 export GOURAMI_DOMAIN="localhost:3030"
 export SSL_ENABLED="0"
+# used in production if SSL_ENABLED=1
+export CERT_PATH=""
+export KEY_PATH=""
 
 # Used for http signature verification. Not necessary if you aren't federating your server.
 # If you are using federation, you'll have to generate these keys.
