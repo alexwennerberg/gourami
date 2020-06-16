@@ -13,7 +13,6 @@ use serde_json::Value;
 use std::collections::BTreeMap;
 use std::convert::Infallible;
 use uuid::Uuid;
-use zxcvbn::zxcvbn;
 
 use warp::filters::path::FullPath;
 use warp::http;
@@ -261,7 +260,7 @@ struct RegisterForm {
 
 impl RegisterForm {
     fn validate(&self) -> Result<(), &'static str> {
-        if zxcvbn(&self.password, &[]).unwrap().score() < 1 {
+        if self.password.len() < 6 {
             return Err("Please come up with a more secure password.");
         }
         Ok(())
