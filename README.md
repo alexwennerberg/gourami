@@ -1,3 +1,5 @@
+# This repository is archived and not maintained. Many of the ideas informing it have informed my new project, [Flounder](https://github.com/alexwennerberg/flounder)
+
 # 🐟gourami: A decentralized social network for the [small web](https://neustadt.fr/essays/the-small-web/), implemented in ActivityPub
 
 ![Build and Test](https://github.com/alexwennerberg/gourami/workflows/Build%20and%20Test/badge.svg)
